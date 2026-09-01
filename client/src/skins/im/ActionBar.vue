@@ -27,6 +27,46 @@ const tigressCard = computed(
   () => game.value?.myHand.find((card) => card.id === tigressFor.value) ?? null,
 )
 
+/**
+ * 自己报了几、已经拿下几。这两个数原来只在右边成员列表和消息流里，出牌的时候
+ * 眼睛全在手牌上，回头翻记录才发现早就超了——所以钉在手牌正上方。
+ */
+const tally = computed(() => {
+  const view = game.value
+  const seat = room.yourSeat
+
+  if (!view || waiting.value || seat < 0 || view.phase === 'Finished') {
+    return null
+  }
+
+  const won = view.tricksWon[seat] ?? 0
+  const bid = view.bids[seat] ?? null
+  const diff = (bid ?? 0) - won
+
+  // 报数阶段还没开打，说「还差几项」会让人以为漏了什么。
+  const bidding = view.phase === 'Bidding'
+
+  const note = bidding
+    ? bid === null
+      ? '等你填承接量'
+      : '已填，等其他人'
+    : diff > 0
+      ? `还差 ${diff} 项`
+      : diff === 0
+        ? '已达标'
+        : `已超 ${-diff} 项`
+
+  return {
+    bid: bid === null ? '—' : String(bid),
+    won,
+    note,
+    tone: bidding || diff > 0 ? '' : diff === 0 ? 'ok' : 'bad',
+    round: bidding
+      ? `议程 ${view.roundNumber}/${view.totalRounds}`
+      : `议程 ${view.roundNumber}/${view.totalRounds} · 第 ${view.trickNumber}/${view.cardsPerPlayer} 项`,
+  }
+})
+
 const hint = computed(() => {
   const view = game.value
 
@@ -127,6 +167,23 @@ async function send() {
       </div>
     </div>
 
+    <!-- 自己这一轮的承接量和完成数，出牌时抬头就能看见 -->
+    <div v-if="tally" class="tally">
+      <span class="cell">
+        <span class="k">本周承接</span>
+        <strong>{{ tally.bid }}</strong>
+      </span>
+
+      <span class="cell">
+        <span class="k">已完成</span>
+        <strong>{{ tally.won }}</strong>
+      </span>
+
+      <span class="note" :class="tally.tone">{{ tally.note }}</span>
+
+      <span class="round muted">{{ tally.round }}</span>
+    </div>
+
     <!-- 叫牌：选本周承接量 -->
     <div v-if="room.needsBid" class="quick-row">
       <button
@@ -218,6 +275,53 @@ async function send() {
   gap: 6px;
 }
 
+.tally {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 6px 20px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.cell {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.k {
+  color: var(--text-muted);
+}
+
+.cell strong {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.note.ok {
+  background: #e6f4ea;
+  color: var(--success);
+}
+
+.note.bad {
+  background: #fdeceb;
+  color: var(--danger);
+}
+
+.round {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
 .quick-row {
   display: flex;
   gap: 8px;
@@ -295,6 +399,15 @@ async function send() {
   .hint {
     flex: 1 1 140px;
     min-width: 0;
+  }
+
+  .tally {
+    padding: 6px 12px;
+  }
+
+  /* 手机上这行容易被挤到换行，轮次是参考信息，让它自己排到后面去 */
+  .round {
+    margin-left: 0;
   }
 
   .quick-row {
