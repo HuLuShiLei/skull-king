@@ -180,19 +180,26 @@ ufw deny 8081
 ```
 
 2. 把 `deploy/traefik-dynamic.example.yml` 拷到 Traefik 主机的 file provider 目录
-   （常见是 `/etc/traefik/dynamic/`），改掉里面的域名、IP、entryPoint 名和证书解析器名。
-   Traefik 开了 `watch: true` 的话会热加载，不用重启。
+   （常见是 `/etc/traefik/conf/` 或 `/etc/traefik/dynamic/`），改掉里面的域名、IP、
+   端口和 entryPoint 名。Traefik 开了 `watch: true` 的话会热加载，不用重启。
 
    如果 Traefik 的静态配置里还没启用 file provider，先加上：
 
 ```yaml
 providers:
   file:
-    directory: /etc/traefik/dynamic
+    directory: /etc/traefik/conf
     watch: true
 ```
 
-3. 剩下的验证步骤和下一节一样。
+   证书那一行要看你的情况：如果 `tls.stores.default` 已经配了泛域名默认证书，
+   router 里写 `tls: {}` 就行；否则要写成 `tls: { certResolver: 你的解析器名 }`。
+   解析器名是你自己在静态配置 `certificatesResolvers` 下起的，不一定叫 `letsencrypt`。
+
+3. 别给这两个 router 挂内网白名单中间件（`ipAllowList` 之类）。这游戏的用途就是
+   让同事在公司网络里进来，挂了白名单等于只有你自己能玩。
+
+4. 剩下的验证步骤和下一节一样。
 
 两台机器之间走的是内网明文 HTTP。同一内网可以接受；如果中间跨了不可信网络，
 要么套 WireGuard，要么给后端也配上证书并把 Traefik 的 service 改成 `https://`。
