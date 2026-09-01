@@ -51,6 +51,12 @@ git push
 
 2. 打开 [Actions 页](https://github.com/StoneShiLei/skull-king/actions) 确认「构建并推送镜像」跑绿了。首次约 3~5 分钟。
 
+   如果 job 只跑了两三秒就红了、点进去一个步骤都没有，多半不是工作流的问题。
+   看 annotation 里的原话，常见的是 `your account is locked due to a billing issue`——
+   公开仓库的 Actions 虽然免费，但账户被账单锁定会全局阻断 runner 分配，
+   去 <https://github.com/settings/billing> 处理完再 Re-run 即可。
+   在这期间可以先走下面的路线 B 部署，不受影响。
+
 3. 把镜像设为公开，这样 Portainer 拉取时不用配凭据：
    GitHub 个人主页 → Packages → 分别打开 `skullking-server` 和 `skullking-client`
    → Package settings → Change visibility → Public。
