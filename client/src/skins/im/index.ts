@@ -2,6 +2,7 @@ import { defineAsyncComponent } from 'vue'
 
 import DisguisePane from './DisguisePane.vue'
 import ImLayout from './ImLayout.vue'
+import ProfileSetup from './ProfileSetup.vue'
 import type { SkinDefinition } from '../types'
 
 /**
@@ -16,6 +17,7 @@ export const imSkin: SkinDefinition = {
   name: '协作沟通',
   layout: ImLayout,
   disguise: DisguisePane,
+  onboarding: ProfileSetup,
   feed: defineAsyncComponent(() => import('./MessageFeed.vue')),
   roster: defineAsyncComponent(() => import('./MemberRoster.vue')),
   actions: defineAsyncComponent(() => import('./ActionBar.vue')),

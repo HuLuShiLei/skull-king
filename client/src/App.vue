@@ -41,6 +41,8 @@ function reload() {
       <button class="btn" @click="reload">重新加载</button>
     </div>
 
+    <component :is="skin.onboarding" v-else-if="session.needsProfile" />
+
     <div v-else-if="!session.ready" class="boot muted">正在连接…</div>
 
     <component :is="skin.layout" v-else>

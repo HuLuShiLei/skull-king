@@ -17,6 +17,9 @@ export interface SkinDefinition {
   /** 老板键按下后顶上来的纯伪装界面。 */
   disguise: Component
 
+  /** 新人的第一屏：还没有身份，先让他填个显示名称。 */
+  onboarding: Component
+
   /** 房间内部的三块：消息流、成员列表、操作区。 */
   feed: Component
   roster: Component
