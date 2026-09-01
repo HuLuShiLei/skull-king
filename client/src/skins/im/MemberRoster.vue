@@ -80,13 +80,17 @@ async function transfer(playerId: string) {
 
         <span class="score">{{ member.totalScore }}</span>
 
-        <button
-          v-if="room.isHost && member.playerId !== room.state?.yourPlayerId"
-          class="btn btn-text more"
-          @click="toggleMenu(member.playerId)"
-        >
-          ⋯
-        </button>
+        <!-- 房主视角下每一行都占住这个槽位，自己那行虽然没有菜单，
+             分数列也要跟别人对齐。 -->
+        <span v-if="room.isHost" class="more-slot">
+          <button
+            v-if="member.playerId !== room.state?.yourPlayerId"
+            class="btn btn-text more"
+            @click="toggleMenu(member.playerId)"
+          >
+            ⋯
+          </button>
+        </span>
 
         <div v-if="menuFor === member.playerId" class="menu">
           <button @click="transfer(member.playerId)">设为群主</button>
@@ -116,6 +120,7 @@ async function transfer(playerId: string) {
   flex-direction: column;
   width: var(--roster-width);
   flex: 0 0 auto;
+  min-height: 0;
   background: var(--bg-panel);
   border-left: 1px solid var(--line);
 }
@@ -204,9 +209,17 @@ header {
 }
 
 .score {
+  min-width: 28px;
+  text-align: right;
   font-size: 12px;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+}
+
+.more-slot {
+  flex: none;
+  width: 16px;
+  text-align: center;
 }
 
 .more {

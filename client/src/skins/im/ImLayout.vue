@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 
 import ConversationList from './ConversationList.vue'
+import GuideDialog from './GuideDialog.vue'
 import SettingsDialog from './SettingsDialog.vue'
 import { useConnectionStore } from '@/stores/connection'
 import { useLobbyStore } from '@/stores/lobby'
@@ -14,6 +15,7 @@ const session = useSessionStore()
 const stealth = useStealthStore()
 
 const settingsOpen = ref(false)
+const guideOpen = ref(false)
 
 onMounted(async () => {
   await connection.ensureStarted()
@@ -35,6 +37,10 @@ onMounted(async () => {
 
       <div class="rail-spacer" />
 
+      <button class="rail-btn" title="使用帮助" @click="guideOpen = true">
+        <span>帮助</span>
+      </button>
+
       <button class="rail-btn" title="设置" @click="settingsOpen = true">
         <span>设置</span>
       </button>
@@ -51,6 +57,7 @@ onMounted(async () => {
     </main>
 
     <SettingsDialog v-if="settingsOpen" @close="settingsOpen = false" />
+    <GuideDialog v-if="guideOpen" @close="guideOpen = false" />
 
     <!-- 唯一的「正在玩游戏」提示，做成状态栏文字而不是浮层 -->
     <div v-if="stealth.unread > 0" class="taskbar-hint">{{ stealth.unread }} 条未读</div>
@@ -62,6 +69,7 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 56px var(--sidebar-width) 1fr;
   height: 100%;
+  overflow: hidden;
   background: var(--bg-app);
 }
 
@@ -114,6 +122,8 @@ onMounted(async () => {
 .content {
   display: flex;
   min-width: 0;
+  /* grid 项默认 min-height:auto，不写这行的话消息一多就把整页撑高 */
+  min-height: 0;
   background: var(--bg-chat);
 }
 

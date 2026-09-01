@@ -171,6 +171,8 @@ async function send() {
 
 <style scoped>
 .bar {
+  /* 输入区不参与收缩，空间不够时让上面的消息区自己滚 */
+  flex: none;
   border-top: 1px solid var(--line);
   background: var(--bg-panel);
 }

@@ -94,6 +94,7 @@ function clockOf(minutesAgo: number): string {
   display: grid;
   grid-template-columns: 56px var(--sidebar-width) 1fr;
   height: 100%;
+  overflow: hidden;
   background: var(--bg-app);
 }
 
@@ -136,6 +137,7 @@ function clockOf(minutesAgo: number): string {
 .list {
   display: flex;
   flex-direction: column;
+  min-height: 0;
   background: var(--bg-panel);
   border-right: 1px solid var(--line);
 }
@@ -199,6 +201,7 @@ function clockOf(minutesAgo: number): string {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   background: var(--bg-chat);
 }
 
@@ -221,6 +224,7 @@ h1 {
 
 .feed {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 16px 20px;
   display: flex;

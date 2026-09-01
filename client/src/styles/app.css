@@ -51,6 +51,13 @@ body,
   margin: 0;
 }
 
+/* IM 客户端不该有整页滚动条，该滚的是消息区自己。
+   这里是兜底：万一某层没约束住高度，宁可裁掉也别让浏览器长出滚动条，
+   那玩意儿一眼就能看出不是个正经办公软件。 */
+body {
+  overflow: hidden;
+}
+
 body {
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',

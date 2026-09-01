@@ -24,6 +24,9 @@ onMounted(() => {
       <p class="secondary tip">
         随时按 <kbd>{{ stealth.bossKeyLabel }}</kbd> 可在纯对话视图之间切换。
       </p>
+      <p class="secondary tip">
+        第一次来、或者看不懂界面上那些黑话，点左下角的「帮助」。
+      </p>
     </div>
 
     <section v-if="lobby.history.length > 0" class="history">
@@ -52,6 +55,8 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: 40px;
 }
 
