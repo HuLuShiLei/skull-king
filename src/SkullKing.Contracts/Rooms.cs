@@ -21,6 +21,12 @@ public sealed record RoomSettingsDto
     public int TurnSeconds { get; init; } = 60;
 
     public bool HasPassword { get; init; }
+
+    /// <summary>
+    /// 口令明文，只发给已经在房里的人，用来把口令拼进邀请链接。
+    /// 落库的只有哈希，所以进程重启后这里会是空的。
+    /// </summary>
+    public string? Password { get; init; }
 }
 
 public sealed record CreateRoomRequest

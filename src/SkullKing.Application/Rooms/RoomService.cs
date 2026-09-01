@@ -59,7 +59,8 @@ public sealed partial class RoomService(
             MaxPlayers = request.MaxPlayers,
             MaxRounds = request.MaxRounds,
             TurnSeconds = request.TurnSeconds,
-            PasswordHash = PasswordHasher.Hash(request.Password)
+            PasswordHash = PasswordHasher.Hash(request.Password),
+            Password = string.IsNullOrWhiteSpace(request.Password) ? null : request.Password
         }.Sanitized();
 
         var room = new Room
@@ -96,6 +97,16 @@ public sealed partial class RoomService(
         if (room is null)
         {
             return RoomActionResult.Fail("房间不存在或已解散");
+        }
+
+        // 同一个连接换到别的房间：先把它从旧房间摘干净。DisconnectAsync 只认
+        // _connections 里的最新映射，漏掉这一步旧房间就会留下一个永远「在线」的
+        // 成员——清不掉、房间回收不了，还可能占着座位把整桌卡死。
+        // 正常路径下客户端会先退房，这里是兜底。锁要在这之后再拿，别同时持两把。
+        if (_connections.TryGetValue(connectionId, out var prior)
+            && !string.Equals(prior.Code, room.Code, StringComparison.OrdinalIgnoreCase))
+        {
+            await DisconnectAsync(connectionId, ct);
         }
 
         await room.Gate.WaitAsync(ct);
@@ -544,7 +555,9 @@ public sealed partial class RoomService(
                 MaxPlayers = room.Settings.MaxPlayers,
                 MaxRounds = room.Settings.MaxRounds,
                 TurnSeconds = room.Settings.TurnSeconds,
-                HasPassword = room.Settings.HasPassword
+                HasPassword = room.Settings.HasPassword,
+                // 明文只发给已经在房里的人，用来拼邀请链接。
+                Password = room.Settings.Password
             },
             room.Status,
             room.HostPlayerId,

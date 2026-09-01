@@ -15,7 +15,14 @@ const router = useRouter()
 const copied = ref(false)
 const failed = ref('')
 
-const inviteLink = computed(() => `${location.origin}/j/${props.code.toUpperCase()}`)
+// 带上口令，对方点开就能直接进，不用你再单独把口令发一遍。
+// 服务端重启过的房间拿不到明文（落库的只有哈希），那时链接退化成要手输。
+const inviteLink = computed(() => {
+  const url = `${location.origin}/j/${props.code.toUpperCase()}`
+  const password = room.state?.settings.password
+
+  return password ? `${url}?pw=${encodeURIComponent(password)}` : url
+})
 
 const progress = computed(() => {
   const view = room.game

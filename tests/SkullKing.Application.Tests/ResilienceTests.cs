@@ -176,6 +176,45 @@ public class ResilienceTests
     }
 
     [Fact]
+    public async Task 同一个连接换房后旧房间不留在线幽灵()
+    {
+        var harness = new Harness();
+        await harness.CreateRoomAsync();
+        await harness.JoinAsync(1);
+
+        var second = await harness.Service.CreateRoomAsync(
+            Harness.PlayerId(1), Harness.Nickname(1), new CreateRoomRequest());
+
+        // 客户端没退房就直奔另一个群（点一下左边别的会话就是这样）。
+        await harness.Service.JoinAsync(
+            second.Code, Harness.PlayerId(1), Harness.Nickname(1), null, "conn-1");
+
+        var left = harness.Room.Members[Harness.PlayerId(1)];
+
+        Assert.False(left.IsConnected);
+        Assert.NotNull(left.DisconnectedAt);
+    }
+
+    [Fact]
+    public async Task 换房后旧房间到期照样能回收()
+    {
+        var harness = new Harness();
+        await harness.CreateRoomAsync();
+
+        var second = await harness.Service.CreateRoomAsync(
+            Harness.PlayerId(0), Harness.Nickname(0), new CreateRoomRequest());
+
+        await harness.Service.JoinAsync(
+            second.Code, Harness.PlayerId(0), Harness.Nickname(0), null, "conn-0");
+
+        // 旧房间里只剩一个早就走了的人，要是他还挂着「在线」，这房间永远回收不掉。
+        harness.Clock.Advance(TimeSpan.FromMinutes(11));
+        await harness.Service.TickAsync();
+
+        Assert.Null(harness.Service.Find(harness.Code));
+    }
+
+    [Fact]
     public async Task 重连回原座位并拿回手牌()
     {
         var harness = await StartedGameAsync();

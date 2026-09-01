@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { api } from '@/api/http'
 
 const props = defineProps<{ code: string }>()
 
+const route = useRoute()
 const router = useRouter()
 const state = ref<'checking' | 'password' | 'missing'>('checking')
 const roomName = ref('')
@@ -24,6 +25,13 @@ onMounted(async () => {
     }
 
     roomName.value = probe.name
+
+    // 链接里本来就带着口令，直接往里走，不用再拦一道。
+    if (typeof route.query.pw === 'string' && route.query.pw) {
+      password.value = route.query.pw
+      enter()
+      return
+    }
 
     if (probe.hasPassword) {
       state.value = 'password'

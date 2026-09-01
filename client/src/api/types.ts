@@ -22,6 +22,8 @@ export interface RoomSettingsDto {
   maxRounds: number
   turnSeconds: number
   hasPassword: boolean
+  /** 口令明文，只有房里的人拿得到，用来拼邀请链接；服务端重启后会是 null。 */
+  password: string | null
 }
 
 export interface CreateRoomRequest {

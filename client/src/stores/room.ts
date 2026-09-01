@@ -202,9 +202,17 @@ export const useRoomStore = defineStore('room', () => {
 
   async function join(roomCode: string, password?: string) {
     const connection = useConnectionStore()
+    const next = roomCode.trim().toUpperCase()
+
+    // 换群要先退掉手上这个。点左边另一个群时 RoomView 只是换了 props、不会卸载，
+    // 卸载时那句 leave 根本不会跑；不主动退的话，旧群里会留下一个永远「在线」的
+    // 自己，那个群既回收不掉，还可能占着座位卡住别人的对局。
+    if (code.value && code.value !== next) {
+      await leave()
+    }
 
     reset()
-    code.value = roomCode.trim().toUpperCase()
+    code.value = next
     joining.value = true
 
     try {

@@ -50,6 +50,15 @@ public class RoomLobbyTests
     }
 
     [Fact]
+    public async Task 房里的人能拿到口令明文用来拼邀请链接()
+    {
+        var harness = new Harness();
+        await harness.CreateRoomAsync(password: "6688");
+
+        Assert.Equal("6688", harness.StateOf(0).Settings.Password);
+    }
+
+    [Fact]
     public async Task 座位满了之后进来的人只能旁观()
     {
         var harness = new Harness();
