@@ -1,0 +1,38 @@
+---
+description: 前端 store 分工、消息流与布局上的既有坑
+globs: client/src/**
+alwaysApply: false
+---
+
+# 前端约束
+
+Vue 3 + TS，`<script setup>`，Pinia setup store。
+
+## store 分工
+
+| store | 负责 |
+| --- | --- |
+| `session` | 匿名身份与 token（token 决定能不能认回原座位） |
+| `connection` | 唯一一条 Hub 连接，把下行消息分发给别的 store；重连后负责 `rejoin` |
+| `room` | 当前房间的状态、消息流、倒计时 |
+| `lobby` | 房间列表与历史 |
+| `stealth` | 伪装态、老板键、未读数 |
+
+组件不直接碰 `hub`，一律经过 store。
+
+## 消息流
+
+事件和快照共用 `room.ts` 里的同一条播放队列，否则快照会在出牌动画播完前抢先落地，桌上的牌会瞬间清空。
+
+- 首份快照**不排队**，直接落地并用 `seedHistory` 一次性铺开服务端补发的流水。
+- 首份快照到位前收到的实时事件**不渲染**——它们都在快照的流水里，现在画上去会让顺序颠倒。
+
+## 三个必须记住的坑
+
+1. **`App.vue` 用 `v-show` 藏真实界面。** 改成 `v-if` 会卸载 `RoomView`，触发退房，按老板键就等于退出对局。
+2. **`ModalShell` 故意不做点遮罩关闭。** 弹窗里都是填了一半的表单，手滑点到外面就前功尽弃。关闭只认右上角 × 和底部按钮。
+3. **flex / grid 链路上每一层都要 `min-height: 0`。** 漏一层，内容变多时整页会被撑长、出现浏览器级滚动条；正确表现是滚动条只出现在消息流里。
+
+## 换群
+
+点左边另一个群走的是同一条路由，`RoomView` 会被复用而不是卸载，`onBeforeUnmount` 里的退房不会执行。`room.join()` 里已经处理：换群前先 `leave()`。新增任何进房入口都要走 `room.join()`，不要自己调 `hub.joinRoom`。

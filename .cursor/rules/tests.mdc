@@ -1,0 +1,44 @@
+---
+description: 测试写法：中文方法名、Harness、假时钟，以及修 bug 时先让测试失败
+globs: tests/**
+alwaysApply: false
+---
+
+# 测试
+
+xUnit。**方法名用中文描述行为**，不带 `Should` / `When`：
+
+```csharp
+[Fact]
+public async Task 有限时的房间掉线也要等限时走完才代打()
+
+[Fact]
+public async Task 同一个连接换房后旧房间不留在线幽灵()
+```
+
+## Harness
+
+`tests/SkullKing.Application.Tests/Harness.cs` 把「建房 → 拉人 → 准备 → 开局」收成了几个方法，测试只写要验的那一点：
+
+```csharp
+var harness = new Harness();
+await harness.CreateRoomAsync(turnSeconds: 60);
+await harness.SeatAndReadyAsync(1, 2);
+await harness.StartAsync();
+
+harness.Clock.Advance(TimeSpan.FromSeconds(61));   // 假时钟，不要 Thread.Sleep
+await harness.Service.TickAsync();                  // 手动触发巡检
+
+harness.StateOf(1);      // 某个玩家最后收到的快照
+harness.GameOf(1);       // 他的对局视图
+```
+
+玩家 index 与 `conn-<index>` 一一对应，`DisconnectAsync("conn-1")` 就是让 1 号掉线。
+
+## 修 bug 时
+
+先写测试并**确认它在未修复的代码上会失败**，再改实现。临时把修复关掉跑一遍是最快的验证方式，跑完记得改回来。
+
+## Domain 层
+
+规则相关的一律在 `tests/SkullKing.Domain.Tests` 里测，用 `TestCards` 构造牌。规则引擎是纯函数，不需要 Harness。

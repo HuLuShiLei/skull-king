@@ -1,0 +1,35 @@
+---
+description: 后端分层、并发、脱敏与时间的硬约束
+globs: src/**/*.cs
+alwaysApply: false
+---
+
+# 后端约束
+
+## 分层方向
+
+`Domain ← Application ← Infrastructure / Server`。Domain 是纯函数规则引擎，不许引用任何外部库或时间；新规则一律加在 Domain 并配单测。Application 只通过 `IGameArchive`、`IRoomNotifier`、`IPlayerStore` 三个接口碰外部世界。
+
+## 并发
+
+所有改房间状态的操作都要先 `await room.Gate.WaitAsync(ct)`，`finally` 里 `Release()`。顺序固定：
+
+```
+校验 → 改内存 → 落库 → 广播事件 → 单播快照
+```
+
+绝不同时持有两把房间锁。需要动另一个房间时，先在锁外把那边处理完（`JoinAsync` 里换房的兜底就是这么做的）。
+
+## 时间
+
+用 `Now`（走注入的 `TimeProvider`），不要 `DateTimeOffset.UtcNow`。测试靠 `TestClock.Advance` 推进，写死系统时间的代码测不了。
+
+## 脱敏
+
+`GameProjector.ToBroadcastDto` 的产物会广播给整个房间，包括旁观者，也会被存进 `room.Events` 补发给后来的人。往里加字段前确认不会泄露手牌或未揭示的叫牌。返回 `null` 表示这个事件不该广播（例如发牌事件带着所有人的手牌）。
+
+按人裁剪的视图走 `GameProjector.Project(room, state, viewerSeat, now)`，观战者的 `viewerSeat` 是 `-1`。
+
+## 状态存哪
+
+内存里的 `Room` 是权威运行态；库里只存种子和命令日志，靠重放恢复。所以**不要往库里存对局状态快照**，加了就会和重放结果打架。`room.Events` 这类纯表现层数据不落库。
