@@ -2,7 +2,9 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import FieldHint from './FieldHint.vue'
 import ModalShell from './ModalShell.vue'
+import { settingHints } from './settingHints'
 import { api } from '@/api/http'
 import { useLobbyStore } from '@/stores/lobby'
 import { useSessionStore } from '@/stores/session'
@@ -99,20 +101,20 @@ async function submitJoin() {
 
     <form v-if="active === 'create'" class="form" @submit.prevent="submitCreate">
       <label class="field">
-        <span>群名称</span>
+        <span>群名称 <FieldHint :text="settingHints.name" /></span>
         <input v-model="form.name" class="input" maxlength="40" />
       </label>
 
       <div class="grid">
         <label class="field">
-          <span>成员上限</span>
+          <span>成员上限 <FieldHint :text="settingHints.maxPlayers" /></span>
           <select v-model.number="form.maxPlayers" class="input">
             <option v-for="n in 7" :key="n" :value="n + 1">{{ n + 1 }} 人</option>
           </select>
         </label>
 
         <label class="field">
-          <span>议程轮数</span>
+          <span>议程轮数 <FieldHint :text="settingHints.maxRounds" /></span>
           <select v-model.number="form.maxRounds" class="input">
             <option v-for="n in 10" :key="n" :value="n">{{ n }} 轮</option>
           </select>
@@ -121,7 +123,7 @@ async function submitJoin() {
 
       <div class="grid">
         <label class="field">
-          <span>单步限时</span>
+          <span>单步限时 <FieldHint :text="settingHints.turnSeconds" /></span>
           <select v-model.number="form.turnSeconds" class="input">
             <option :value="0">不限时</option>
             <option :value="30">30 秒</option>
@@ -131,7 +133,7 @@ async function submitJoin() {
         </label>
 
         <label class="field">
-          <span>入群口令（可选）</span>
+          <span>入群口令（可选） <FieldHint :text="settingHints.password" /></span>
           <input v-model="form.password" class="input" maxlength="20" />
         </label>
       </div>
@@ -139,6 +141,7 @@ async function submitJoin() {
       <label class="check">
         <input v-model="form.isPublic" type="checkbox" />
         <span>允许在列表中被搜索到</span>
+        <FieldHint :text="settingHints.isPublic" up />
       </label>
 
       <p v-if="error" class="error">{{ error }}</p>
@@ -208,6 +211,19 @@ async function submitJoin() {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+/* 标题行要装下问号按钮，全局的 .field > span 只是纯文本 */
+.field > span {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+/* 说明气泡按这一层的宽度铺开，见 FieldHint */
+.field,
+.check {
+  position: relative;
 }
 
 .check {

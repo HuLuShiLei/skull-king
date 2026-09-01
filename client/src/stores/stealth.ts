@@ -10,9 +10,11 @@ interface StealthSettings {
   documentTitle: string
 }
 
+// 自动伪装默认关着：切个窗口回来发现自己在假聊天界面，比被人看见还容易慌。
+// 想要的人去设置里自己打开，老板键是随时都在的。
 const DEFAULTS: StealthSettings = {
   bossKey: 'Escape',
-  hideOnBlur: true,
+  hideOnBlur: false,
   blurDelaySeconds: 8,
   documentTitle: '协作平台',
 }

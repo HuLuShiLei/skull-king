@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
+import FieldHint from './FieldHint.vue'
 import ModalShell from './ModalShell.vue'
+import { settingHints } from './settingHints'
 import { RoomStatusValues } from '@/api/types'
 import { useRoomStore } from '@/stores/room'
 
@@ -54,20 +56,20 @@ async function submit() {
   <ModalShell title="群设置" :width="440" @close="emit('close')">
     <form class="form" @submit.prevent="submit">
       <label class="field">
-        <span>群名称</span>
+        <span>群名称 <FieldHint :text="settingHints.name" /></span>
         <input v-model="form.name" class="input" maxlength="40" :disabled="playing" />
       </label>
 
       <div class="grid">
         <label class="field">
-          <span>成员上限</span>
+          <span>成员上限 <FieldHint :text="settingHints.maxPlayers" /></span>
           <select v-model.number="form.maxPlayers" class="input" :disabled="playing">
             <option v-for="n in 7" :key="n" :value="n + 1">{{ n + 1 }} 人</option>
           </select>
         </label>
 
         <label class="field">
-          <span>议程轮数</span>
+          <span>议程轮数 <FieldHint :text="settingHints.maxRounds" /></span>
           <select v-model.number="form.maxRounds" class="input" :disabled="playing">
             <option v-for="n in 10" :key="n" :value="n">{{ n }} 轮</option>
           </select>
@@ -75,7 +77,7 @@ async function submit() {
       </div>
 
       <label class="field">
-        <span>单步限时</span>
+        <span>单步限时 <FieldHint :text="settingHints.turnSeconds" /></span>
         <select v-model.number="form.turnSeconds" class="input">
           <option :value="0">不限时</option>
           <option :value="30">30 秒</option>
@@ -92,6 +94,7 @@ async function submit() {
       <label class="check">
         <input v-model="form.isPublic" type="checkbox" :disabled="playing" />
         <span>允许在列表中被搜索到</span>
+        <FieldHint :text="settingHints.isPublic" up />
       </label>
 
       <p v-if="playing" class="hint muted">对局进行中只能调整限时，其余等这局结束再改。</p>
@@ -116,6 +119,19 @@ async function submit() {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+/* 标题行要装下问号按钮，全局的 .field > span 只是纯文本 */
+.field > span {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+/* 说明气泡按这一层的宽度铺开，见 FieldHint */
+.field,
+.check {
+  position: relative;
 }
 
 .check {
