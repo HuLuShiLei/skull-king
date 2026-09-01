@@ -7,7 +7,9 @@
 services:
   server:
     build:
-      context: .
+      # context 是相对「compose 文件所在目录」解析的，这个文件在 deploy/ 下，
+      # 所以要往上一级才是仓库根——Dockerfile 里 COPY 的都是 src/ 这种根路径。
+      context: ..
       dockerfile: deploy/Dockerfile.server
     image: skullking-server:selfbuilt
     restart: unless-stopped
@@ -22,7 +24,7 @@ services:
 
   web:
     build:
-      context: .
+      context: ..
       dockerfile: deploy/Dockerfile.client
     image: skullking-client:selfbuilt
     restart: unless-stopped

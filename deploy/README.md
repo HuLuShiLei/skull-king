@@ -102,6 +102,23 @@ Portainer → Stacks → Add stack → 选 **Repository**：
 
 升级时点 **Pull and redeploy**，它会重新拉代码并重建。
 
+如果部署时报 `compose build operation failed: mkdir /.docker: permission denied`，
+这是 Portainer 自身的问题（[portainer#13143](https://github.com/portainer/portainer/issues/13143)），
+和 compose 文件无关：它内嵌的 compose 配置了用 Bake 构建但没装 buildx，
+回退时去写 `$HOME/.docker`，而容器里 `HOME` 是空的，于是变成往根目录写。
+
+绕过办法是别让 Portainer 来构建，直接在 Docker 主机上敲命令：
+
+```bash
+git clone https://github.com/StoneShiLei/skull-king.git /opt/skull-king
+cd /opt/skull-king/deploy
+cp stack.env.example .env      # 按需改里面的 BIND_ADDR 等
+docker compose -f stack.remote-traefik.build.yml -p skullking up -d --build
+```
+
+这样起出来的容器 Portainer 照样能看到和管理，只是「部署」这一步不经过它。
+升级就是 `git pull` 之后再跑一次同样的 `up -d --build`。
+
 两条路线的 compose 文件除了「拉镜像 / 现场构建」这一处，其余完全一致，随时可以互换。
 
 ## 三、在 Portainer 上部署（Traefik 同机）
