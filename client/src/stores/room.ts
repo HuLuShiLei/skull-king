@@ -29,6 +29,13 @@ export const useRoomStore = defineStore('room', () => {
   const joining = ref(false)
   const removedReason = ref('')
 
+  /**
+   * 进这个房间时用的口令。重连要重新报一次 JoinRoom，正常情况下服务端认
+   * playerId 就放行，但如果掉线太久已经被清出成员名单，就会走新人那条路重新验
+   * 口令——不带着的话会收到「房间密码不正确」，明明是超时被清出去了。
+   */
+  const passwordUsed = ref<string | undefined>(undefined)
+
   const queue: QueueItem[] = []
   let draining = false
   let countdownTimer: number | null = null
@@ -179,6 +186,7 @@ export const useRoomStore = defineStore('room', () => {
     code.value = ''
     lastError.value = ''
     removedReason.value = ''
+    passwordUsed.value = undefined
     queue.length = 0
     syncCountdown()
   }
@@ -213,6 +221,7 @@ export const useRoomStore = defineStore('room', () => {
 
     reset()
     code.value = next
+    passwordUsed.value = password
     joining.value = true
 
     try {
@@ -250,6 +259,7 @@ export const useRoomStore = defineStore('room', () => {
     secondsLeft,
     joining,
     removedReason,
+    passwordUsed,
 
     game,
     members,

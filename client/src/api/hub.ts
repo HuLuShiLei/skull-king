@@ -49,7 +49,17 @@ export class GameHubClient {
     // token 走 query 而不是 Authorization 头：WebSocket 握手不支持自定义头。
     const connection = new HubConnectionBuilder()
       .withUrl(`${apiBase}/hub/game?access_token=${encodeURIComponent(readToken() ?? '')}`)
-      .withAutomaticReconnect([0, 1000, 3000, 5000, 10000, 15000, 30000])
+      // 默认那种「重试几次就放弃」的策略在这里不合用：一放弃就得手动刷新页面，
+      // 而服务端给了十分钟宽限，这期间回来都还能认回原座位。所以一直退避重试
+      // 到宽限期结束为止，超过了房间里也没这个人了，再试也没意义。
+      .withAutomaticReconnect({
+        nextRetryDelayInMilliseconds: (context) =>
+          context.elapsedMilliseconds > 10 * 60 * 1000
+            ? null
+            : context.previousRetryCount === 0
+              ? 0
+              : Math.min(30_000, 1000 * 2 ** (context.previousRetryCount - 1)),
+      })
       .configureLogging(LogLevel.Warning)
       .build()
 

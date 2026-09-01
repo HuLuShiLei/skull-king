@@ -50,7 +50,7 @@ export const useConnectionStore = defineStore('connection', () => {
     }
 
     try {
-      const result = await hub.joinRoom(room.code)
+      const result = await hub.joinRoom(room.code, room.passwordUsed)
 
       if (!result.ok) {
         room.removedReason = result.error ?? '这个群已经解散了'
