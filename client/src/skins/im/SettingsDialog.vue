@@ -51,6 +51,10 @@ function captureKey(event: KeyboardEvent) {
   stealth.settings.bossKey = event.key
   capturing.value = false
 }
+
+async function onNotifyToggle(on: boolean) {
+  await stealth.setDesktopNotify(on)
+}
 </script>
 
 <template>
@@ -99,6 +103,20 @@ function captureKey(event: KeyboardEvent) {
           <option :value="60">60 秒</option>
         </select>
       </label>
+
+      <label class="check">
+        <input
+          type="checkbox"
+          :checked="stealth.notifyOn"
+          :disabled="!stealth.notifySupported || stealth.notifyDenied"
+          @change="onNotifyToggle(($event.target as HTMLInputElement).checked)"
+        />
+        <span>切到别的窗口时用系统通知提醒</span>
+      </label>
+      <p v-if="!stealth.notifySupported" class="muted note">当前浏览器不支持系统通知。</p>
+      <p v-else-if="stealth.notifyDenied" class="muted note">
+        浏览器已拒绝通知，需要到站点设置里重新允许。
+      </p>
     </section>
 
     <div class="actions">

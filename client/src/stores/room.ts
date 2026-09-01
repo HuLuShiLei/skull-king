@@ -107,7 +107,12 @@ export const useRoomStore = defineStore('room', () => {
 
           // 只在「刚轮到你」的那一刻提示一次，重复推送的快照不该反复打扰。
           if (!wasWaiting && waitingOnYou.value) {
-            useStealthStore().notify()
+            const stealth = useStealthStore()
+            stealth.notify({
+              title: stealth.settings.documentTitle,
+              body: needsBid.value ? '请参与接龙' : '轮到你处理',
+              tag: 'sk-turn',
+            })
           }
 
           continue
@@ -182,7 +187,16 @@ export const useRoomStore = defineStore('room', () => {
 
   function onChat(message: ChatMessageDto) {
     push({ kind: 'chat', id: nextFeedId(), at: Date.parse(message.sentAt), message })
-    useStealthStore().notify()
+
+    if (message.playerId === state.value?.yourPlayerId) {
+      return
+    }
+
+    useStealthStore().notify({
+      title: message.nickname,
+      body: message.text,
+      tag: 'sk-chat',
+    })
   }
 
   function syncCountdown() {
