@@ -5,6 +5,8 @@ import { api, ApiError, clearToken, readToken, writeToken } from '@/api/http'
 
 const NICKNAME_POOL = ['产品小李', '前端老王', '测试小张', '后端阿强', '设计师小美', '实习生小陈']
 
+const NAME_KEY = 'sk.nickname'
+
 export const useSessionStore = defineStore('session', () => {
   const playerId = ref('')
   const nickname = ref('')
@@ -17,11 +19,22 @@ export const useSessionStore = defineStore('session', () => {
     playerId.value = auth.playerId
     nickname.value = auth.nickname
     writeToken(auth.token)
+
+    // 名字单独留一份。凭证过期之后靠它把人静默接回来，别让填过一次的人
+    // 再对着「完善资料」填一遍。
+    localStorage.setItem(NAME_KEY, auth.nickname)
+
     ready.value = true
   }
 
   function suggest(): string {
     return NICKNAME_POOL[Math.floor(Math.random() * NICKNAME_POOL.length)]
+  }
+
+  /** 填完名字才真的建身份，省掉「先随机再改名」两次请求。 */
+  async function register(name: string) {
+    apply(await api.loginAnonymous(name.trim() || suggest()))
+    needsProfile.value = false
   }
 
   /** 有旧凭证就沿用，认不回来就当新人。凭证同时决定能不能回到原座位。 */
@@ -41,15 +54,16 @@ export const useSessionStore = defineStore('session', () => {
       }
     }
 
-    // 这里不顺手发个身份。以前是随机分一个名字直接放进来，结果没人想得起去设置里
-    // 改，一桌人全是词表里那六个名字，报承接量时根本认不出谁是谁。
-    needsProfile.value = true
-  }
+    const remembered = localStorage.getItem(NAME_KEY)?.trim()
 
-  /** 新人填完名字才真的建身份，省掉「先随机再改名」两次请求。 */
-  async function register(name: string) {
-    apply(await api.loginAnonymous(name.trim() || suggest()))
-    needsProfile.value = false
+    if (remembered) {
+      await register(remembered)
+      return
+    }
+
+    // 真正的新人才拦。以前是随机分一个名字直接放进来，结果没人想得起去设置里改，
+    // 一桌人全是词表里那六个名字，报承接量时根本认不出谁是谁。
+    needsProfile.value = true
   }
 
   async function rename(next: string) {
