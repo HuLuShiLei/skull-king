@@ -29,7 +29,7 @@ description: 骷髅王项目新增或修改一个房间设置项（人数上限�
   <select v-model.number="form.maxPlayers" class="input" :disabled="playing">
 ```
 
-气泡按所在字段的宽度铺开（要求父级 `.field` / `.check` 有 `position: relative`），表单最后一项传 `up` 让它往上翻，否则会被弹窗内容区裁掉。
+气泡会 Teleport 到 body、按字段宽度铺开，靠近底部自动往上翻。文案写进 `settingHints.ts`，两三句说清「不点开会误会」的那一点，别写成说明书。
 
 ## 文案要求
 

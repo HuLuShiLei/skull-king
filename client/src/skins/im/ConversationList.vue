@@ -109,14 +109,10 @@ function go(item: RoomSummaryDto) {
         </p>
 
         <p v-if="leavingPlaying" class="secondary">
-          手上这场讨论还没结束。切过去之后你的发言会由系统代为处理，随时点回来就能接着参与。
+          讨论未结束。切走后由系统代为处理，随时可回来。
         </p>
-        <p v-else-if="alone" class="secondary">
-          群里现在只有你一个人，切过去这个群就直接解散了，回不来。
-        </p>
-        <p v-else class="secondary">
-          等于退出这个群。之后想回来得重新点进去，群里没人了会自动解散。
-        </p>
+        <p v-else-if="alone" class="secondary">群里只剩你，切过去这个群会解散。</p>
+        <p v-else class="secondary">等于退出本群。没人了会自动解散。</p>
 
         <div class="actions">
           <button class="btn" @click="pending = null">留在这里</button>

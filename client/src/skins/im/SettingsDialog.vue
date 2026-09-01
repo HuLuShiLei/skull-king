@@ -81,7 +81,7 @@ function captureKey(event: KeyboardEvent) {
           <button class="btn key" :class="{ on: capturing }" @keydown="captureKey" @click="capturing = true">
             {{ capturing ? '请按一个键…' : stealth.bossKeyLabel }}
           </button>
-          <span class="muted note">按一下立刻切到纯对话视图，再按一下回来</span>
+          <span class="muted note">再按一次切回</span>
         </div>
       </label>
 

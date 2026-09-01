@@ -87,17 +87,13 @@ async function submit() {
         </select>
       </label>
 
-      <p class="hint muted">
-        选「不限时」之后没人会被系统代打，临时去忙工作也不用担心手上这轮被顶掉。
-      </p>
-
       <label class="check">
         <input v-model="form.isPublic" type="checkbox" :disabled="playing" />
         <span>允许在列表中被搜索到</span>
-        <FieldHint :text="settingHints.isPublic" up />
+        <FieldHint :text="settingHints.isPublic" />
       </label>
 
-      <p v-if="playing" class="hint muted">对局进行中只能调整限时，其余等这局结束再改。</p>
+      <p v-if="playing" class="hint muted">进行中只能改限时。</p>
       <p v-if="error" class="error">{{ error }}</p>
 
       <div class="actions">
@@ -128,7 +124,7 @@ async function submit() {
   align-items: center;
 }
 
-/* 说明气泡按这一层的宽度铺开，见 FieldHint */
+/* FieldHint 用 closest('.field, .check') 量宽度 */
 .field,
 .check {
   position: relative;

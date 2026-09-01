@@ -141,7 +141,7 @@ async function submitJoin() {
       <label class="check">
         <input v-model="form.isPublic" type="checkbox" />
         <span>允许在列表中被搜索到</span>
-        <FieldHint :text="settingHints.isPublic" up />
+        <FieldHint :text="settingHints.isPublic" />
       </label>
 
       <p v-if="error" class="error">{{ error }}</p>
@@ -169,7 +169,7 @@ async function submitJoin() {
         <input v-model="joinPassword" class="input" maxlength="20" />
       </label>
 
-      <p class="hint muted">也可以直接打开别人发来的邀请链接，形如 /j/ABC234</p>
+      <p class="hint muted">也可直接打开邀请链接，如 /j/ABC234</p>
       <p v-if="error" class="error">{{ error }}</p>
 
       <div class="actions">
@@ -220,7 +220,7 @@ async function submitJoin() {
   align-items: center;
 }
 
-/* 说明气泡按这一层的宽度铺开，见 FieldHint */
+/* FieldHint 用 closest('.field, .check') 量宽度 */
 .field,
 .check {
   position: relative;
