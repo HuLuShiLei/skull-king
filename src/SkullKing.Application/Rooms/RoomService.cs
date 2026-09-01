@@ -194,6 +194,42 @@ public sealed partial class RoomService(
         }
     }
 
+    /// <summary>
+    /// 改名要同步到玩家所在的房间，否则牌桌上还挂着旧名字，
+    /// 直到他退出重进才会变。
+    /// </summary>
+    public async Task RenameAsync(string playerId, string nickname, CancellationToken ct = default)
+    {
+        foreach (var room in _rooms.Values.ToList())
+        {
+            if (!room.Members.ContainsKey(playerId))
+            {
+                continue;
+            }
+
+            await room.Gate.WaitAsync(ct);
+
+            try
+            {
+                if (!room.Members.TryGetValue(playerId, out var member) || member.Nickname == nickname)
+                {
+                    continue;
+                }
+
+                var previous = member.Nickname;
+                member.Nickname = nickname;
+
+                await BroadcastNoticeAsync(room, $"{previous} 改名为 {nickname}", ct);
+                await archive.ReplaceMembersAsync(room.Id, ToPersistedMembers(room), ct);
+                await PushStateAsync(room, ct);
+            }
+            finally
+            {
+                room.Gate.Release();
+            }
+        }
+    }
+
     public async Task DisconnectAsync(string connectionId, CancellationToken ct = default)
     {
         if (!_connections.TryRemove(connectionId, out var link))
@@ -226,18 +262,10 @@ public sealed partial class RoomService(
 
             member.DisconnectedAt = Now;
 
-            // 没在打牌的房间里断线就直接清出去，免得占着座位不开局。
-            if (room.Status != RoomStatus.Playing)
-            {
-                room.Members.Remove(link.PlayerId);
-                await BroadcastNoticeAsync(room, $"{member.Nickname} 已离开", ct);
-                await HandleHostDepartureAsync(room, link.PlayerId, ct);
-            }
-            else
-            {
-                await BroadcastNoticeAsync(room, $"{member.Nickname} 掉线了", ct);
-            }
-
+            // 断线一律先留人。刷新页面、切后台被浏览器掐掉心跳、地铁里断一下网
+            // 都会走到这里，立刻清出去的话，一个人的房间会当场被回收，
+            // 人再回来只能看到「房间不存在」。真没回来的由 TickAsync 兜底清理。
+            await BroadcastNoticeAsync(room, $"{member.Nickname} 掉线了", ct);
             await FinalizeMembershipChangeAsync(room, ct);
         }
         finally
@@ -320,9 +348,16 @@ public sealed partial class RoomService(
                 return RoomActionResult.Fail("只有房主能改设置");
             }
 
-            if (room.Status == RoomStatus.Playing)
+            // 打到一半有人被工作叫走是常事，所以限时这一项对局中也能改，
+            // 关掉之后谁都不会被系统代打。其余几项会牵动座位和轮数，
+            // 中途改会把正在进行的牌局搞乱，仍然锁住。
+            if (room.Status == RoomStatus.Playing
+                && (request.Name is not null
+                    || request.IsPublic is not null
+                    || request.MaxPlayers is not null
+                    || request.MaxRounds is not null))
             {
-                return RoomActionResult.Fail("对局进行中不能改设置");
+                return RoomActionResult.Fail("对局进行中只能调整限时");
             }
 
             var updated = room.Settings with
@@ -341,7 +376,16 @@ public sealed partial class RoomService(
                 return RoomActionResult.Fail($"已经有 {room.SeatedCount} 人入座，上限不能再调低");
             }
 
+            var limitChanged = sanitized.TurnSeconds != room.Settings.TurnSeconds;
+
             room.Settings = sanitized;
+
+            // 改完立刻按新限时重新计时，否则关掉限时后旧的截止时间还挂着，
+            // 下一次巡检照样会把人托管掉。
+            if (limitChanged)
+            {
+                RefreshTurnDeadline(room);
+            }
 
             return RoomActionResult.Success;
         }, ct);

@@ -121,6 +121,19 @@ public class RoomLobbyTests
     }
 
     [Fact]
+    public async Task 改名会同步到牌桌上的名字()
+    {
+        var harness = new Harness();
+        await harness.CreateRoomAsync();
+        await harness.JoinAsync(1);
+
+        await harness.Service.RenameAsync(Harness.PlayerId(1), "改过的名字");
+
+        Assert.Equal("改过的名字", harness.Room.Members[Harness.PlayerId(1)].Nickname);
+        Assert.Contains(harness.StateOf(0).Members, m => m.Nickname == "改过的名字");
+    }
+
+    [Fact]
     public async Task 人数上限不能调到低于已入座人数()
     {
         var harness = new Harness();

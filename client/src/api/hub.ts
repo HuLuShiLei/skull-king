@@ -49,9 +49,14 @@ export class GameHubClient {
     // token 走 query 而不是 Authorization 头：WebSocket 握手不支持自定义头。
     const connection = new HubConnectionBuilder()
       .withUrl(`${apiBase}/hub/game?access_token=${encodeURIComponent(readToken() ?? '')}`)
-      .withAutomaticReconnect([0, 1000, 3000, 5000, 10000])
+      .withAutomaticReconnect([0, 1000, 3000, 5000, 10000, 15000, 30000])
       .configureLogging(LogLevel.Warning)
       .build()
+
+    // 和服务端对齐。默认 30 秒的话，后台标签页的定时器被浏览器压慢之后
+    // 客户端会先一步认定服务器没了，自己把连接断掉。
+    connection.serverTimeoutInMilliseconds = 120_000
+    connection.keepAliveIntervalInMilliseconds = 30_000
 
     connection.on('RoomState', this.handlers.onRoomState)
     connection.on('GameEvent', this.handlers.onGameEvent)

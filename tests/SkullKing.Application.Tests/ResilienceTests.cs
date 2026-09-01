@@ -84,7 +84,35 @@ public class ResilienceTests
     }
 
     [Fact]
-    public async Task 等待中掉线直接清出座位()
+    public async Task 对局中可以把限时关掉从此不再托管()
+    {
+        var harness = await StartedGameAsync(turnSeconds: 30);
+
+        var result = await harness.Service.UpdateSettingsAsync(
+            harness.Code, Harness.PlayerId(0), new UpdateRoomSettingsRequest { TurnSeconds = 0 });
+
+        Assert.True(result.Ok);
+
+        // 关掉之后旧的截止时间也得一起清掉，否则下一次巡检照样托管。
+        harness.Clock.Advance(TimeSpan.FromMinutes(5));
+        await harness.Service.TickAsync();
+
+        Assert.All(harness.Room.Game!.Bids, Assert.Null);
+    }
+
+    [Fact]
+    public async Task 对局中不许改限时以外的设置()
+    {
+        var harness = await StartedGameAsync();
+
+        var result = await harness.Service.UpdateSettingsAsync(
+            harness.Code, Harness.PlayerId(0), new UpdateRoomSettingsRequest { MaxRounds = 3 });
+
+        Assert.False(result.Ok);
+    }
+
+    [Fact]
+    public async Task 等待中掉线先留着座位()
     {
         var harness = new Harness();
         await harness.CreateRoomAsync();
@@ -92,7 +120,59 @@ public class ResilienceTests
 
         await harness.Service.DisconnectAsync("conn-1");
 
+        // 刷新页面、切后台被掐掉心跳都会走到这，立刻清人的话回来就没座位了。
+        var member = harness.Room.Members[Harness.PlayerId(1)];
+
+        Assert.False(member.IsConnected);
+        Assert.NotNull(member.DisconnectedAt);
+    }
+
+    [Fact]
+    public async Task 一个人的房间掉线后重连还在()
+    {
+        var harness = new Harness();
+        await harness.CreateRoomAsync();
+
+        // 房主独自在房间里，这是最容易被误回收的情形。
+        await harness.Service.DisconnectAsync("conn-0");
+
+        harness.Clock.Advance(TimeSpan.FromMinutes(3));
+        await harness.Service.TickAsync();
+
+        var result = await harness.Service.JoinAsync(
+            harness.Code, Harness.PlayerId(0), Harness.Nickname(0), null, "conn-0-new");
+
+        Assert.True(result.Ok);
+        Assert.Equal(0, harness.Room.Members[Harness.PlayerId(0)].Seat);
+    }
+
+    [Fact]
+    public async Task 掉线久到没回来才真的清出去()
+    {
+        var harness = new Harness();
+        await harness.CreateRoomAsync();
+        await harness.JoinAsync(1);
+
+        await harness.Service.DisconnectAsync("conn-1");
+
+        harness.Clock.Advance(TimeSpan.FromMinutes(11));
+        await harness.Service.TickAsync();
+
         Assert.DoesNotContain(Harness.PlayerId(1), harness.Room.Members.Keys);
+    }
+
+    [Fact]
+    public async Task 所有人都久未回来时房间被回收()
+    {
+        var harness = new Harness();
+        await harness.CreateRoomAsync();
+
+        await harness.Service.DisconnectAsync("conn-0");
+
+        harness.Clock.Advance(TimeSpan.FromMinutes(11));
+        await harness.Service.TickAsync();
+
+        Assert.Null(harness.Service.Find(harness.Code));
     }
 
     [Fact]

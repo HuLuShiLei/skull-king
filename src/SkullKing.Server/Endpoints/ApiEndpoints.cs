@@ -67,6 +67,7 @@ public static class ApiEndpoints
             RenameRequest request,
             HttpContext http,
             IPlayerStore players,
+            RoomService rooms,
             CancellationToken ct) =>
         {
             var playerId = http.User.PlayerId();
@@ -75,9 +76,15 @@ public static class ApiEndpoints
 
             var player = await players.FindByIdAsync(playerId, ct);
 
-            return player is null
-                ? Results.Unauthorized()
-                : Results.Ok(new AuthResponse(player.Id, player.Nickname, player.Token));
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            // 玩家表改完还得把牌桌上的名字一起换掉。
+            await rooms.RenameAsync(playerId, player.Nickname, ct);
+
+            return Results.Ok(new AuthResponse(player.Id, player.Nickname, player.Token));
         }).RequireAuthorization();
     }
 

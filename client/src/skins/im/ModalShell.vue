@@ -4,7 +4,11 @@ const emit = defineEmits<{ close: [] }>()
 </script>
 
 <template>
-  <div class="backdrop" @click.self="emit('close')">
+  <!--
+    刻意不做「点遮罩关闭」：这些弹窗里全是填了一半的表单，
+    手滑点到外面就前功尽弃。关闭只认右上角的 × 和底部按钮。
+  -->
+  <div class="backdrop">
     <section class="modal" :style="{ width: `${width ?? 420}px` }">
       <header>
         <h2>{{ title }}</h2>

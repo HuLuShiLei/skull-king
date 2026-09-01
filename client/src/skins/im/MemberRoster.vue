@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
+import RoomSettingsDialog from './RoomSettingsDialog.vue'
 import type { RoomMemberDto } from '@/api/types'
 import { useRoomStore } from '@/stores/room'
 
 const room = useRoomStore()
 const menuFor = ref('')
+const settingsOpen = ref(false)
 
 const game = computed(() => room.game)
 
@@ -44,8 +46,16 @@ async function transfer(playerId: string) {
   <aside class="roster">
     <header>
       <span>群成员</span>
-      <span class="muted">{{ room.seated.length }}/{{ room.state?.settings.maxPlayers ?? 0 }}</span>
+
+      <span class="head-right">
+        <span class="muted">{{ room.seated.length }}/{{ room.state?.settings.maxPlayers ?? 0 }}</span>
+        <button v-if="room.isHost" class="btn btn-text btn-sm" @click="settingsOpen = true">
+          设置
+        </button>
+      </span>
     </header>
+
+    <RoomSettingsDialog v-if="settingsOpen" @close="settingsOpen = false" />
 
     <div class="scroll">
       <div
@@ -112,11 +122,18 @@ async function transfer(playerId: string) {
 
 header {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   padding: 11px 14px;
   border-bottom: 1px solid var(--line);
   font-size: 13px;
   color: var(--text-secondary);
+}
+
+.head-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .scroll {

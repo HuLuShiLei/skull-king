@@ -15,17 +15,25 @@ const capturing = ref(false)
 const saving = ref(false)
 
 async function saveNickname() {
-  if (!nickname.value.trim() || nickname.value === session.nickname) {
+  const next = nickname.value.trim()
+
+  if (!next || next === session.nickname) {
     return
   }
 
   saving.value = true
 
   try {
-    await session.rename(nickname.value)
+    await session.rename(next)
   } finally {
     saving.value = false
   }
+}
+
+/** 关窗前把改了一半的名字落下去，不然用户会以为改完了。 */
+async function done() {
+  await saveNickname()
+  emit('close')
 }
 
 function captureKey(event: KeyboardEvent) {
@@ -46,7 +54,7 @@ function captureKey(event: KeyboardEvent) {
 </script>
 
 <template>
-  <ModalShell title="设置" :width="440" @close="emit('close')">
+  <ModalShell title="设置" :width="440" @close="done">
     <section class="group">
       <h3>个人</h3>
 
@@ -94,7 +102,7 @@ function captureKey(event: KeyboardEvent) {
     </section>
 
     <div class="actions">
-      <button class="btn btn-primary" @click="emit('close')">完成</button>
+      <button class="btn btn-primary" :disabled="saving" @click="done">完成</button>
     </div>
   </ModalShell>
 </template>

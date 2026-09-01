@@ -24,7 +24,13 @@ builder.Services.AddSingleton<IRoomNotifier, SignalRRoomNotifier>();
 builder.Services.AddSingleton<IUserIdProvider, PlayerIdUserIdProvider>();
 builder.Services.AddHostedService<TurnTimeoutService>();
 
-builder.Services.AddSignalR();
+// 默认 30 秒判定超时，但浏览器会把后台标签页的定时器压到一分钟一次，
+// 摸鱼时切走一会儿就会被误判成掉线。放宽到两分钟，代价只是真掉线时晚一点发现。
+builder.Services.AddSignalR(options =>
+{
+    options.ClientTimeoutInterval = TimeSpan.FromMinutes(2);
+    options.KeepAliveInterval = TimeSpan.FromSeconds(30);
+});
 
 builder.Services
     .AddAuthentication(PlayerTokenDefaults.Scheme)

@@ -31,16 +31,34 @@ export const useConnectionStore = defineStore('connection', () => {
     onConnectionChanged: (value) => {
       connected.value = value
 
-      // 重连成功后重新入房，服务端会凭 token 认回原座位并补发快照。
       if (value) {
-        const room = useRoomStore()
-
-        if (room.code) {
-          void hub.joinRoom(room.code)
-        }
+        void rejoin()
       }
     },
   })
+
+  /**
+   * 重连成功后认回原来的房间。服务端凭 token 找回座位并补发快照，
+   * 失败通常意味着房间在断线期间已经被回收，这时得让用户看见，
+   * 不然界面会停在一个早就不存在的房间上。
+   */
+  async function rejoin() {
+    const room = useRoomStore()
+
+    if (!room.code) {
+      return
+    }
+
+    try {
+      const result = await hub.joinRoom(room.code)
+
+      if (!result.ok) {
+        room.removedReason = result.error ?? '这个群已经解散了'
+      }
+    } catch {
+      // 还没连稳，等下一次 onreconnected 再试。
+    }
+  }
 
   function ensureStarted(): Promise<void> {
     starting ??= hub.start().catch((error: unknown) => {

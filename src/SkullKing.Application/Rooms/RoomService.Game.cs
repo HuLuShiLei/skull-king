@@ -13,6 +13,12 @@ public sealed partial class RoomService
     /// <summary>掉线的人不必等满整个回合限时，但也要留够刷新页面重连的时间。</summary>
     private static readonly TimeSpan DisconnectGrace = TimeSpan.FromSeconds(20);
 
+    /// <summary>
+    /// 掉线多久之后才真的把人请出房间。给得比较宽松是因为摸鱼场景下
+    /// 切走十几分钟很正常，而没在打牌的房间留着几乎不占资源。
+    /// </summary>
+    private static readonly TimeSpan AbandonGrace = TimeSpan.FromMinutes(10);
+
     public async Task<RoomActionResult> StartGameAsync(string code, string playerId, CancellationToken ct = default)
     {
         var room = Find(code);
@@ -218,11 +224,6 @@ public sealed partial class RoomService
     {
         foreach (var room in _rooms.Values.ToList())
         {
-            if (room.Status != RoomStatus.Playing || room.Game is null)
-            {
-                continue;
-            }
-
             if (!await room.Gate.WaitAsync(0, ct))
             {
                 continue;
@@ -230,17 +231,53 @@ public sealed partial class RoomService
 
             try
             {
-                await AutoAdvanceAsync(room, ct);
+                if (room.Status == RoomStatus.Playing && room.Game is not null)
+                {
+                    await AutoAdvanceAsync(room, ct);
+                }
+                else
+                {
+                    await SweepAbandonedAsync(room, ct);
+                }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "房间 {Code} 托管推进失败", room.Code);
+                logger.LogError(ex, "房间 {Code} 巡检失败", room.Code);
             }
             finally
             {
                 room.Gate.Release();
             }
         }
+    }
+
+    /// <summary>
+    /// 把掉线超过宽限期的人清出房间，房间空了就回收。
+    /// 只在不打牌的时候做——对局进行中座位不能塌陷，那种情况交给托管。
+    /// </summary>
+    private async Task SweepAbandonedAsync(Room room, CancellationToken ct)
+    {
+        var now = Now;
+
+        var gone = room.Members.Values
+            .Where(m => m is { IsConnected: false, DisconnectedAt: { } since } && now - since >= AbandonGrace)
+            .ToList();
+
+        if (gone.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var member in gone)
+        {
+            room.Members.Remove(member.PlayerId);
+            await BroadcastNoticeAsync(room, $"{member.Nickname} 长时间没回来，已退出群聊", ct);
+            await HandleHostDepartureAsync(room, member.PlayerId, ct);
+        }
+
+        logger.LogInformation("房间 {Code} 清理了 {Count} 个久未重连的成员", room.Code, gone.Count);
+
+        await FinalizeMembershipChangeAsync(room, ct);
     }
 
     private async Task AutoAdvanceAsync(Room room, CancellationToken ct)

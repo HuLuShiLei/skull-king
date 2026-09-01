@@ -62,7 +62,7 @@ src/
   SkullKing.Server/          Minimal API + SignalR Hub + 托管前端产物
 client/                      Vue 3 + TS + Vite（IM 皮肤）
 deploy/                      两个 Dockerfile、nginx 配置、Portainer stack、部署说明
-tests/                       xUnit，120 个用例
+tests/                       xUnit，126 个用例
 ```
 
 ### 几个设计上的取舍
