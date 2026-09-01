@@ -224,6 +224,23 @@ WebSocket 是否通只能在浏览器里看：F12 → Network → WS，应该有
 `/hub/game` 的连接处于 101/open 状态。如果它在反复重连，通常是 Traefik 那边
 把 WebSocket 升级头过滤了，检查有没有给这个 router 挂上会改写请求头的中间件。
 
+容器还没起、只想先确认 Traefik 这一侧配对了的话，有两个办法。一是直接请求，
+**502 说明路由命中了只是后端没起，404 才是路由没匹配上**：
+
+```bash
+curl -sk -o /dev/null -w '%{http_code}\n' \
+  --resolve 你的域名:443:127.0.0.1 https://你的域名/api/healthz
+```
+
+二是问 Traefik 自己的 API（dashboard 开着的话），能看到 router 的
+`status`、`priority` 和它实际绑到了哪个 service：
+
+```bash
+curl -s http://127.0.0.1:8080/api/http/routers | grep -A5 skullking
+```
+
+顺带看一眼 `/api/overview`，里面的 `errors` 和 `warnings` 计数应该都是 0。
+
 ## 五、数据与备份
 
 对局历史在 `skullking-data` 卷里的 SQLite 文件。备份就是把文件拷出来：
