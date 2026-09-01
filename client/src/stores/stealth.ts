@@ -20,12 +20,15 @@ export interface StealthNotice {
 
 // 自动伪装默认关着：切个窗口回来发现自己在假聊天界面，比被人看见还容易慌。
 // 想要的人去设置里自己打开，老板键是随时都在的。
+//
+// 系统通知反过来默认开着：它只在你已经切走时才响，不会暴露什么，
+// 而漏掉「轮到你了」会直接被代打。真正的开关是浏览器权限，没授权就是不弹。
 const DEFAULTS: StealthSettings = {
   bossKey: 'Escape',
   hideOnBlur: false,
   blurDelaySeconds: 8,
   documentTitle: '协作平台',
-  desktopNotify: false,
+  desktopNotify: true,
 }
 
 function load(): StealthSettings {
@@ -56,6 +59,7 @@ export const useStealthStore = defineStore('stealth', () => {
   const notifyPermission = ref(permissionNow())
 
   let blurTimer: number | null = null
+  let asked = false
   const openNotices: Notification[] = []
 
   const bossKeyLabel = computed(() =>
@@ -149,6 +153,25 @@ export const useStealthStore = defineStore('stealth', () => {
 
     unread.value += 1
     showDesktopNotice(payload)
+  }
+
+  /**
+   * 进房时顺手要一次通知权限。放在这里而不是开屏，是因为只有坐到桌前才需要它，
+   * 一进站就弹权限框既突兀又容易被直接拒掉——拒过之后再想开只能去站点设置。
+   */
+  async function ensureNotifyPermission() {
+    if (asked || !settings.value.desktopNotify || typeof Notification === 'undefined') {
+      return
+    }
+
+    asked = true
+
+    if (Notification.permission !== 'default') {
+      notifyPermission.value = Notification.permission
+      return
+    }
+
+    notifyPermission.value = await Notification.requestPermission()
   }
 
   async function setDesktopNotify(on: boolean) {
@@ -245,6 +268,7 @@ export const useStealthStore = defineStore('stealth', () => {
     reveal,
     notify,
     clearUnread,
+    ensureNotifyPermission,
     setDesktopNotify,
     install,
     uninstall,

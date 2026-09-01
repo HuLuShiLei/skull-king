@@ -40,6 +40,13 @@ export const useRoomStore = defineStore('room', () => {
   let draining = false
   let countdownTimer: number | null = null
 
+  /**
+   * 已经画进消息流的事件序号和聊天 id。每份快照都带着最近的流水，靠这两个集合
+   * 把「已经看过的」筛掉，剩下的就是断线期间漏掉的——不然重连回来这段是空白。
+   */
+  const seenEvents = new Set<number>()
+  const seenChat = new Set<string>()
+
   const game = computed(() => state.value?.game ?? null)
   const members = computed(() => state.value?.members ?? [])
   const seated = computed(() => members.value.filter((m) => !m.isSpectator))
@@ -79,6 +86,8 @@ export const useRoomStore = defineStore('room', () => {
       return 0
     }
 
+    seenEvents.add(event.seq)
+
     const item = toFeedItem(event, nicknameOf)
 
     if (item) {
@@ -104,6 +113,7 @@ export const useRoomStore = defineStore('room', () => {
 
           state.value = item.payload
           syncCountdown()
+          seedHistory(item.payload)
 
           // 只在「刚轮到你」的那一刻提示一次，重复推送的快照不该反复打扰。
           if (!wasWaiting && waitingOnYou.value) {
@@ -155,14 +165,22 @@ export const useRoomStore = defineStore('room', () => {
   }
 
   /**
-   * 把服务端补发的流水一次性铺进消息流。半途来观战、或者刷新了页面的人靠这个
-   * 立刻看到前面打成什么样——不走播放队列，那是给实时事件做动画用的，
+   * 把服务端补发的流水里还没画过的部分铺进消息流。半途来观战、刷新页面、
+   * 断线重连的人都靠这个补齐——不走播放队列，那是给实时事件做动画用的，
    * 拿来补历史就得一条条干等。
+   *
+   * 每份快照都会过一遍，正常打牌时全都是看过的，等于空转。
    */
   function seedHistory(next: RoomStateDto) {
     const history: FeedItem[] = []
 
     for (const event of next.recentEvents) {
+      if (seenEvents.has(event.seq)) {
+        continue
+      }
+
+      seenEvents.add(event.seq)
+
       const item = toFeedItem(event, nicknameOf)
 
       if (item) {
@@ -171,7 +189,16 @@ export const useRoomStore = defineStore('room', () => {
     }
 
     for (const message of next.recentChat) {
+      if (seenChat.has(message.id)) {
+        continue
+      }
+
+      seenChat.add(message.id)
       history.push({ kind: 'chat', id: nextFeedId(), at: Date.parse(message.sentAt), message })
+    }
+
+    if (history.length === 0) {
+      return
     }
 
     history.sort((a, b) => a.at - b.at)
@@ -186,6 +213,11 @@ export const useRoomStore = defineStore('room', () => {
   }
 
   function onChat(message: ChatMessageDto) {
+    if (seenChat.has(message.id)) {
+      return
+    }
+
+    seenChat.add(message.id)
     push({ kind: 'chat', id: nextFeedId(), at: Date.parse(message.sentAt), message })
 
     if (message.playerId === state.value?.yourPlayerId) {
@@ -229,6 +261,8 @@ export const useRoomStore = defineStore('room', () => {
     removedReason.value = ''
     passwordUsed.value = undefined
     queue.length = 0
+    seenEvents.clear()
+    seenChat.clear()
     syncCountdown()
   }
 

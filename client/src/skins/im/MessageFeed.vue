@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import CardChip from './CardChip.vue'
 import { bidText, scoreText, WIN_REASON_TEXT } from './vocabulary'
@@ -23,28 +23,49 @@ function clockOf(at: number): string {
   return new Date(at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
 
+// 只有停在底部的人才跟着新消息走，往上翻历史的时候不该被拽回来。
+let stuck = true
+let observer: ResizeObserver | null = null
+
+function onScroll() {
+  const element = scroller.value
+
+  if (element) {
+    stuck = element.scrollHeight - element.scrollTop - element.clientHeight < 160
+  }
+}
+
+function toBottom() {
+  const element = scroller.value
+
+  if (element && stuck) {
+    element.scrollTop = element.scrollHeight
+  }
+}
+
 watch(
   () => props.feed.length,
   async () => {
-    const element = scroller.value
-
-    if (!element) {
-      return
-    }
-
-    const nearBottom = element.scrollHeight - element.scrollTop - element.clientHeight < 160
-
     await nextTick()
-
-    if (nearBottom) {
-      element.scrollTop = element.scrollHeight
-    }
+    toBottom()
   },
 )
+
+// 手机上弹输入法会让这块整体变矮，不跟一下的话最后几条就被顶到看不见的地方。
+onMounted(() => {
+  if (typeof ResizeObserver === 'undefined' || !scroller.value) {
+    return
+  }
+
+  observer = new ResizeObserver(toBottom)
+  observer.observe(scroller.value)
+})
+
+onBeforeUnmount(() => observer?.disconnect())
 </script>
 
 <template>
-  <div ref="scroller" class="feed">
+  <div ref="scroller" class="feed" @scroll.passive="onScroll">
     <template v-for="item in feed" :key="item.id">
       <!-- 真聊天 -->
       <div

@@ -3,6 +3,9 @@ import { createApp } from 'vue'
 
 import App from './App.vue'
 import router from './router'
+import { installViewportHeight } from './viewport'
 import './styles/app.css'
+
+installViewportHeight()
 
 createApp(App).use(createPinia()).use(router).mount('#app')

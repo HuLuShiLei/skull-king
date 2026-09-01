@@ -22,6 +22,11 @@ const bidOptions = computed(() => {
   return Array.from({ length: max + 1 }, (_, index) => index)
 })
 
+// 认这张牌是否还在手上，换轮之后残留的选中态会自己失效。
+const tigressCard = computed(
+  () => game.value?.myHand.find((card) => card.id === tigressFor.value) ?? null,
+)
+
 const hint = computed(() => {
   const view = game.value
 
@@ -42,7 +47,7 @@ const hint = computed(() => {
   }
 
   if (room.isYourTurn) {
-    return '轮到你处理，点下方任务卡即可'
+    return tigressCard.value ? '机动人力先选算哪种，选完才算发出' : '轮到你处理，点下方任务卡即可'
   }
 
   return `等待 ${room.nicknameOf(view.currentSeat)} 处理`
@@ -134,24 +139,32 @@ async function send() {
       </button>
     </div>
 
-    <!-- 快捷回复条：手牌 -->
-    <div v-else-if="game && game.myHand.length > 0" class="quick-row cards">
-      <div v-for="card in game.myHand" :key="card.id" class="card-slot">
-        <CardChip
-          :card="card"
-          size="md"
-          interactive
-          :dimmed="!canPlay(card)"
-          :selected="tigressFor === card.id"
-          @click="play(card)"
-        />
+    <template v-else>
+      <!--
+        机动人力要先定这次算哪种。原来做成浮在牌上方的小菜单，会被快捷回复条的
+        横向滚动整个裁掉——看着像点了没反应，其实牌根本没出。摊成一行就不会。
+      -->
+      <div v-if="tigressCard" class="quick-row choose">
+        <span class="choose-label">机动人力这次算：</span>
+        <button class="quick-item strong" @click="playTigress('AsPirate')">外部顾问</button>
+        <button class="quick-item strong" @click="playTigress('AsEscape')">本项跳过</button>
+        <button class="quick-item" @click="tigressFor = null">取消</button>
+      </div>
 
-        <div v-if="tigressFor === card.id" class="tigress-menu">
-          <button @click="playTigress('AsPirate')">当作外部顾问</button>
-          <button @click="playTigress('AsEscape')">当作本项跳过</button>
+      <!-- 快捷回复条：手牌 -->
+      <div v-if="game && game.myHand.length > 0" class="quick-row cards">
+        <div v-for="card in game.myHand" :key="card.id" class="card-slot">
+          <CardChip
+            :card="card"
+            size="md"
+            interactive
+            :dimmed="!canPlay(card)"
+            :selected="tigressFor === card.id"
+            @click="play(card)"
+          />
         </div>
       </div>
-    </div>
+    </template>
 
     <div class="composer">
       <textarea
@@ -231,36 +244,22 @@ async function send() {
 }
 
 .card-slot {
-  position: relative;
   flex: 0 0 auto;
 }
 
-.tigress-menu {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  z-index: 20;
-  display: flex;
-  flex-direction: column;
-  min-width: 140px;
-  padding: 4px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--bg-panel);
-  box-shadow: var(--shadow-lg);
+.choose {
+  align-items: center;
 }
 
-.tigress-menu button {
-  padding: 6px 10px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  text-align: left;
+.choose-label {
+  color: var(--text-secondary);
   font-size: 13px;
+  white-space: nowrap;
 }
 
-.tigress-menu button:hover {
-  background: var(--bg-hover);
+.quick-item.strong {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .composer {
@@ -312,13 +311,23 @@ async function send() {
     min-height: 36px;
   }
 
+  /* 输入框和发送按钮并排。竖着摆的话按钮单独占一行，键盘一弹更没地方站 */
   .composer {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
     padding: 6px 12px calc(8px + env(safe-area-inset-bottom));
   }
 
   .editor {
+    flex: 1;
+    min-width: 0;
     font-size: 16px;
-    min-height: 24px;
+    min-height: 36px;
+  }
+
+  .send-row {
+    flex: none;
   }
 
   .tip {

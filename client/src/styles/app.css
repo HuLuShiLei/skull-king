@@ -48,7 +48,8 @@ html,
 body,
 #app {
   height: 100%;
-  height: 100dvh;
+  /* 输入法弹出时这个值会缩到键盘上方，见 viewport.ts */
+  height: var(--app-height, 100dvh);
   margin: 0;
 }
 
@@ -219,12 +220,6 @@ select {
 
 /* 窄于这个宽度，三栏 IM 会挤成碎片，改成列表和聊天二选一。 */
 @media (max-width: 800px) {
-  html,
-  body,
-  #app {
-    height: 100dvh;
-  }
-
   /* iOS 会把小于 16px 的输入框聚焦时整页放大 */
   input,
   select,

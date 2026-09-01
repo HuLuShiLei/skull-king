@@ -4,10 +4,12 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { activeSkin } from '@/skins/registry'
 import { useRoomStore } from '@/stores/room'
+import { useStealthStore } from '@/stores/stealth'
 
 const props = defineProps<{ code: string }>()
 
 const room = useRoomStore()
+const stealth = useStealthStore()
 const skin = activeSkin()
 const route = useRoute()
 const router = useRouter()
@@ -47,6 +49,7 @@ async function enter() {
     failed.value = room.lastError || '无法加入这个群'
   } else {
     failed.value = ''
+    void stealth.ensureNotifyPermission()
 
     // 口令留在地址栏里既不安全也容易被瞥见，进房后立刻抹掉。
     if (route.query.pw) {
