@@ -71,11 +71,11 @@ watch(
         <span>第 {{ item.round }} 项议程 · 每人 {{ item.cards }} 条任务</span>
       </div>
 
-      <!-- 叫牌揭示：伪装成群接龙 -->
+      <!-- 叫牌揭示 -->
       <div v-else-if="item.kind === 'bids'" class="line">
-        <div class="avatar sm">接</div>
+        <div class="avatar sm">承</div>
         <div class="stack">
-          <div class="meta secondary">群接龙 · 本周承接量</div>
+          <div class="meta secondary">本周承接量</div>
           <div class="bubble card-block">
             <div v-for="(bid, seat) in item.bids" :key="seat" class="poll-row">
               <span class="poll-name ellipsis">{{ nicknameOf(seat) }}</span>

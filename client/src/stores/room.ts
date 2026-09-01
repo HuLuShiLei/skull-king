@@ -110,7 +110,7 @@ export const useRoomStore = defineStore('room', () => {
             const stealth = useStealthStore()
             stealth.notify({
               title: stealth.settings.documentTitle,
-              body: needsBid.value ? '请参与接龙' : '轮到你处理',
+              body: needsBid.value ? '请填写承接量' : '轮到你处理',
               tag: 'sk-turn',
             })
           }

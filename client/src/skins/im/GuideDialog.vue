@@ -17,7 +17,7 @@ const glossary: { real: string; here: string; note: string }[] = [
   { real: '一局游戏', here: '本季度考核', note: '打满设定的轮数就结束' },
   { real: '一轮 / 第 N 轮', here: '第 N 项议程', note: '第 N 轮每人拿 N 张牌' },
   { real: '一墩（trick）', here: '一批任务', note: '每人各出一张，比大小定归属' },
-  { real: '叫牌', here: '群接龙 · 承接量', note: '预报自己这轮能拿几墩' },
+  { real: '叫牌', here: '承接量', note: '预报自己这轮能拿几墩' },
   { real: '手牌', here: '待办任务', note: '底部快捷回复条里那排' },
   { real: '出牌', here: '发消息 / 认领任务', note: '灰掉的是当前不能出的' },
   { real: '得分', here: '绩效', note: '右侧成员列表里的数字' },

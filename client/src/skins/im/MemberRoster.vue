@@ -21,7 +21,7 @@ function bidOf(member: RoomMemberDto): string {
   const won = view.tricksWon[member.seat] ?? 0
 
   if (!view.bidsRevealed) {
-    return view.hasBid[member.seat] ? '已接龙' : '待接龙'
+    return view.hasBid[member.seat] ? '已填' : '待填'
   }
 
   return `${won}/${view.bids[member.seat] ?? 0}`

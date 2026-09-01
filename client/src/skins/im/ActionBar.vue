@@ -38,7 +38,7 @@ const hint = computed(() => {
   }
 
   if (view.phase === 'Bidding') {
-    return room.needsBid ? '请参与接龙，填写本周可承接的条数' : '等待其他成员接龙'
+    return room.needsBid ? '请填写本周承接量' : '等待其他成员填写'
   }
 
   if (room.isYourTurn) {
@@ -122,7 +122,7 @@ async function send() {
       </div>
     </div>
 
-    <!-- 接龙条：叫牌 -->
+    <!-- 叫牌：选本周承接量 -->
     <div v-if="room.needsBid" class="quick-row">
       <button
         v-for="option in bidOptions"
