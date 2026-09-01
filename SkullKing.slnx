@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SkullKing.Application/SkullKing.Application.csproj" />
+    <Project Path="src/SkullKing.Contracts/SkullKing.Contracts.csproj" />
+    <Project Path="src/SkullKing.Domain/SkullKing.Domain.csproj" />
+    <Project Path="src/SkullKing.Infrastructure/SkullKing.Infrastructure.csproj" />
+    <Project Path="src/SkullKing.Server/SkullKing.Server.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SkullKing.Application.Tests/SkullKing.Application.Tests.csproj" />
+    <Project Path="tests/SkullKing.Domain.Tests/SkullKing.Domain.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,16 @@
+services:
+  skullking:
+    build: .
+    image: skullking:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # 反代后面跑 https 时把这里换成对外域名，邀请链接用的是浏览器地址，不受影响。
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: Data Source=/data/skullking.db
+    volumes:
+      - skullking-data:/data
+
+volumes:
+  skullking-data:

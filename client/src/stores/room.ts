@@ -1,0 +1,278 @@
+import { defineStore } from 'pinia'
+import { computed, ref } from 'vue'
+
+import type {
+  ChatMessageDto,
+  GameEventDto,
+  RoomStateDto,
+  UpdateRoomSettingsRequest,
+} from '@/api/types'
+import { nextFeedId, type FeedItem } from './feed'
+import { pauseAfter, toFeedItem } from './eventFeed'
+import { useConnectionStore } from './connection'
+import { useStealthStore } from './stealth'
+
+const FEED_LIMIT = 300
+
+type QueueItem =
+  | { type: 'event'; payload: GameEventDto }
+  | { type: 'state'; payload: RoomStateDto }
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
+export const useRoomStore = defineStore('room', () => {
+  const state = ref<RoomStateDto | null>(null)
+  const feed = ref<FeedItem[]>([])
+  const code = ref('')
+  const lastError = ref('')
+  const secondsLeft = ref<number | null>(null)
+  const joining = ref(false)
+  const removedReason = ref('')
+
+  const queue: QueueItem[] = []
+  let draining = false
+  let countdownTimer: number | null = null
+
+  const game = computed(() => state.value?.game ?? null)
+  const members = computed(() => state.value?.members ?? [])
+  const seated = computed(() => members.value.filter((m) => !m.isSpectator))
+  const spectators = computed(() => members.value.filter((m) => m.isSpectator))
+  const you = computed(() => members.value.find((m) => m.playerId === state.value?.yourPlayerId))
+  const isHost = computed(() => state.value?.hostPlayerId === state.value?.yourPlayerId)
+  const yourSeat = computed(() => state.value?.yourSeat ?? -1)
+
+  const isYourTurn = computed(() => {
+    const view = game.value
+    return !!view && view.phase === 'Playing' && view.currentSeat === yourSeat.value
+  })
+
+  const needsBid = computed(() => {
+    const view = game.value
+    return !!view && view.phase === 'Bidding' && yourSeat.value >= 0 && !view.hasBid[yourSeat.value]
+  })
+
+  const waitingOnYou = computed(() => isYourTurn.value || needsBid.value)
+
+  function nicknameOf(seat: number): string {
+    return members.value.find((m) => m.seat === seat)?.nickname ?? `${seat + 1} 号位`
+  }
+
+  function push(item: FeedItem) {
+    feed.value.push(item)
+
+    if (feed.value.length > FEED_LIMIT) {
+      feed.value.splice(0, feed.value.length - FEED_LIMIT)
+    }
+  }
+
+  function applyEvent(event: GameEventDto): number {
+    const item = toFeedItem(event, nicknameOf)
+
+    if (item) {
+      push(item)
+    }
+
+    return pauseAfter(event)
+  }
+
+  async function drain() {
+    if (draining) {
+      return
+    }
+
+    draining = true
+
+    try {
+      while (queue.length > 0) {
+        const item = queue.shift()!
+
+        if (item.type === 'state') {
+          const wasWaiting = waitingOnYou.value
+
+          state.value = item.payload
+          syncCountdown()
+
+          // 只在「刚轮到你」的那一刻提示一次，重复推送的快照不该反复打扰。
+          if (!wasWaiting && waitingOnYou.value) {
+            useStealthStore().notify()
+          }
+
+          continue
+        }
+
+        const pause = applyEvent(item.payload)
+
+        if (pause > 0) {
+          await sleep(pause)
+        }
+      }
+    } finally {
+      draining = false
+    }
+  }
+
+  /**
+   * 事件和快照走同一条队列。否则快照会在出牌动画播完前抢先落地，
+   * 桌面上的牌会瞬间清空，看起来像丢帧。
+   */
+  function enqueue(item: QueueItem) {
+    queue.push(item)
+    void drain()
+  }
+
+  function onRoomState(next: RoomStateDto) {
+    if (next.code !== code.value) {
+      return
+    }
+
+    // 首次进房不排队，否则会白屏等到队列空转一轮。
+    if (!state.value) {
+      state.value = next
+      syncCountdown()
+      seedChatHistory(next)
+      return
+    }
+
+    enqueue({ type: 'state', payload: next })
+  }
+
+  function seedChatHistory(next: RoomStateDto) {
+    for (const message of next.recentChat) {
+      push({ kind: 'chat', id: nextFeedId(), at: Date.parse(message.sentAt), message })
+    }
+  }
+
+  function onGameEvent(event: GameEventDto) {
+    enqueue({ type: 'event', payload: event })
+  }
+
+  function onChat(message: ChatMessageDto) {
+    push({ kind: 'chat', id: nextFeedId(), at: Date.parse(message.sentAt), message })
+    useStealthStore().notify()
+  }
+
+  function syncCountdown() {
+    if (countdownTimer !== null) {
+      window.clearInterval(countdownTimer)
+      countdownTimer = null
+    }
+
+    const remaining = game.value?.turnSecondsRemaining ?? null
+    secondsLeft.value = remaining
+
+    if (remaining === null) {
+      return
+    }
+
+    countdownTimer = window.setInterval(() => {
+      if (secondsLeft.value === null || secondsLeft.value <= 0) {
+        return
+      }
+
+      secondsLeft.value -= 1
+    }, 1000)
+  }
+
+  function reset() {
+    state.value = null
+    feed.value = []
+    code.value = ''
+    lastError.value = ''
+    removedReason.value = ''
+    queue.length = 0
+    syncCountdown()
+  }
+
+  async function run(action: () => Promise<{ ok: boolean; error: string | null }>) {
+    try {
+      const result = await action()
+
+      if (!result.ok) {
+        lastError.value = result.error ?? '操作失败'
+        return false
+      }
+
+      lastError.value = ''
+      return true
+    } catch (error) {
+      lastError.value = error instanceof Error ? error.message : '网络异常'
+      return false
+    }
+  }
+
+  async function join(roomCode: string, password?: string) {
+    const connection = useConnectionStore()
+
+    reset()
+    code.value = roomCode.trim().toUpperCase()
+    joining.value = true
+
+    try {
+      await connection.ensureStarted()
+
+      const ok = await run(() => connection.hub.joinRoom(code.value, password))
+
+      if (!ok) {
+        code.value = ''
+      }
+
+      return ok
+    } finally {
+      joining.value = false
+    }
+  }
+
+  async function leave() {
+    const connection = useConnectionStore()
+
+    if (code.value) {
+      await run(() => connection.hub.leaveRoom(code.value))
+    }
+
+    reset()
+  }
+
+  const hub = () => useConnectionStore().hub
+
+  return {
+    state,
+    feed,
+    code,
+    lastError,
+    secondsLeft,
+    joining,
+    removedReason,
+
+    game,
+    members,
+    seated,
+    spectators,
+    you,
+    isHost,
+    yourSeat,
+    isYourTurn,
+    needsBid,
+    waitingOnYou,
+
+    nicknameOf,
+    onRoomState,
+    onGameEvent,
+    onChat,
+    reset,
+    join,
+    leave,
+
+    setReady: (ready: boolean) => run(() => hub().setReady(code.value, ready)),
+    sitDown: () => run(() => hub().sitDown(code.value)),
+    standUp: () => run(() => hub().standUp(code.value)),
+    startGame: () => run(() => hub().startGame(code.value)),
+    placeBid: (bid: number) => run(() => hub().placeBid(code.value, bid)),
+    playCard: (cardId: string, tigressMode?: string) =>
+      run(() => hub().playCard(code.value, cardId, tigressMode)),
+    sendChat: (text: string) => run(() => hub().sendChat(code.value, text)),
+    kick: (playerId: string) => run(() => hub().kick(code.value, playerId)),
+    transferHost: (playerId: string) => run(() => hub().transferHost(code.value, playerId)),
+    updateSettings: (request: UpdateRoomSettingsRequest) =>
+      run(() => hub().updateSettings(code.value, request)),
+  }
+})

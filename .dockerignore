@@ -1,0 +1,15 @@
+**/bin
+**/obj
+**/node_modules
+**/.vs
+**/.vscode
+**/.idea
+**/*.user
+**/*.db
+**/*.db-shm
+**/*.db-wal
+src/SkullKing.Server/wwwroot
+client/dist
+.git
+.github
+.cursor

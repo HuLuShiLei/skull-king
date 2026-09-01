@@ -1,0 +1,15 @@
+bin/
+obj/
+node_modules/
+dist/
+
+*.db
+*.db-shm
+*.db-wal
+
+src/SkullKing.Server/wwwroot/
+
+.vs/
+.vscode/
+.idea/
+*.user
