@@ -51,8 +51,8 @@ https://sk.example.com/*       ───→ skullking-client:80
 产出的镜像是：
 
 ```
-ghcr.io/stoneshilei/skullking-server:latest
-ghcr.io/stoneshilei/skullking-client:latest
+ghcr.io/hulushilei/skullking-server:latest
+ghcr.io/hulushilei/skullking-client:latest
 ```
 
 1. 把这次的改动推上去：
@@ -63,7 +63,7 @@ git commit -m "拆分前后端容器，补上 Traefik 部署与镜像构建流�
 git push
 ```
 
-2. 打开 [Actions 页](https://github.com/StoneShiLei/skull-king/actions) 确认「构建并推送镜像」跑绿了。首次约 3~5 分钟。
+2. 打开 [Actions 页](https://github.com/HuLuShiLei/skull-king/actions) 确认「构建并推送镜像」跑绿了。首次约 3~5 分钟。
 
    如果 job 只跑了两三秒就红了、点进去一个步骤都没有，多半不是工作流的问题。
    看 annotation 里的原话，常见的是 `your account is locked due to a billing issue`——
@@ -96,7 +96,7 @@ git tag v1.0.0 && git push --tags
 
 Portainer → Stacks → Add stack → 选 **Repository**：
 
-- Repository URL：`https://github.com/StoneShiLei/skull-king`（私有仓库要额外填 PAT）
+- Repository URL：`https://github.com/HuLuShiLei/skull-king`（私有仓库要额外填 PAT）
 - Repository reference：`refs/heads/main`
 - Compose path：`deploy/stack.traefik.build.yml`
 
@@ -110,7 +110,7 @@ Portainer → Stacks → Add stack → 选 **Repository**：
 绕过办法是别让 Portainer 来构建，直接在 Docker 主机上敲命令：
 
 ```bash
-git clone https://github.com/StoneShiLei/skull-king.git /opt/skull-king
+git clone https://github.com/HuLuShiLei/skull-king.git /opt/skull-king
 cd /opt/skull-king/deploy
 cp stack.env.example .env      # 按需改里面的 BIND_ADDR 等
 docker compose -f stack.remote-traefik.build.yml -p skullking up -d --build
