@@ -31,6 +31,8 @@ member.DisconnectedAt = Now;
 邀请链接带上口令，修掉换群不退旧群留下在线幽灵
 ```
 
+改完并通过验证后直接 `git commit` 再 `git push` 到当前分支，不必等人说「提交」。不要用 `--force`，不要改 git config。
+
 ## 伪装术语
 
 面向用户的文案不许出现牌桌词汇。对照关系在 `client/src/skins/im/vocabulary.ts`：房间＝群聊，玩家＝群成员，出牌＝发消息，叫牌＝群接龙／承接需求，得分＝绩效，开局＝发起议程，轮次＝议程轮数。
