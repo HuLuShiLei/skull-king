@@ -7,6 +7,20 @@
 | `skullking-server` | ASP.NET Core，只提供 API 和 SignalR Hub | 8080 | 是，`/data` 放 SQLite |
 | `skullking-client` | nginx，托管前端静态产物 | 80 | 否 |
 
+## 选哪个 stack 文件
+
+先看 Traefik 和这两个容器是不是在**同一台 Docker 主机**上，这决定了 Traefik 能不能读到容器标签：
+
+| 你的情况 | 用这个 | 说明 |
+| --- | --- | --- |
+| Traefik 同机，镜像从 GHCR 拉 | `stack.traefik.yml` | 靠 `traefik.*` 标签自动发现 |
+| Traefik 同机，本机现场构建 | `stack.traefik.build.yml` | 同上，但不依赖镜像仓库 |
+| Traefik 在别的机器，从 GHCR 拉 | `stack.remote-traefik.yml` | 发布宿主机端口，Traefik 侧写 file provider |
+| Traefik 在别的机器，本机构建 | `stack.remote-traefik.build.yml` | 同上，不依赖镜像仓库 |
+| 只想本地试一下 | 仓库根的 `compose.yaml` | 直接映射端口，不经反代 |
+
+四个 stack 文件除了「拉镜像 / 现场构建」和「标签 / 端口」这两处，其余完全一致，随时可以互换。
+
 ## 一、先理解路由模式
 
 推荐**同源模式**：前端和后端挂同一个域名，Traefik 按路径分流。
@@ -90,9 +104,10 @@ Portainer → Stacks → Add stack → 选 **Repository**：
 
 两条路线的 compose 文件除了「拉镜像 / 现场构建」这一处，其余完全一致，随时可以互换。
 
-## 三、在 Portainer 上部署
+## 三、在 Portainer 上部署（Traefik 同机）
 
 前提：Traefik 已经跑起来，并且有一个外部 Docker 网络（一般叫 `traefik`）。
+Traefik 在别的机器上的话跳到第 3.5 节。
 
 1. DNS 把 `sk.example.com` 解析到服务器。
 
@@ -121,6 +136,66 @@ Portainer → Stacks → Add stack → 选 **Repository**：
 
 6. 打开 `https://sk.example.com`，填个昵称就能进。左栏「新建群聊」开房，把 6 位群号或
    `https://sk.example.com/j/群号` 发给同事。
+
+## 三点五、Traefik 在另一台机器上
+
+Traefik 的 docker provider 是通过**本机** Docker socket 发现容器的，跨主机读不到标签。
+所以这种情况下 `traefik.*` 标签、`TRAEFIK_NETWORK`、`SKULLKING_DOMAIN` 这些
+环境变量在容器这一侧统统没有意义——域名和证书都改由 Traefik 那台机器上的配置文件决定。
+
+改成两个容器把端口发布到宿主机，Traefik 用 file provider 指过来：
+
+```
+                    ┌─ Traefik 主机 192.168.66.10 ─┐
+   浏览器 ── HTTPS ──→  按路径分流                  │
+                    └──────┬──────────┬────────────┘
+                      HTTP │          │ HTTP（内网明文）
+                    ┌──────▼──────────▼────────────┐
+                    │ Portainer 主机 192.168.66.20 │
+                    │  :8080 后端     :8081 前端    │
+                    └──────────────────────────────┘
+```
+
+1. 用 `deploy/stack.remote-traefik.yml`（或 `.build.yml`）部署，环境变量只需要这几个：
+
+| 变量 | 说明 |
+| --- | --- |
+| `BIND_ADDR` | **填 Portainer 主机的内网 IP**，如 `192.168.66.20`。默认 `127.0.0.1` 会导致 Traefik 连不上 |
+| `SERVER_PORT` | 后端在宿主机上的端口，默认 `8080` |
+| `WEB_PORT` | 前端在宿主机上的端口，默认 `8081` |
+| `IMAGE_OWNER` | GitHub 用户名（全小写），用 `.build.yml` 时不需要 |
+| `IMAGE_TAG` | 留空即 `latest` |
+| `TZ` | 时区，默认 `Asia/Shanghai` |
+| `SKULLKING_API_BASE` | 同源模式留空 |
+
+   `BIND_ADDR` 一定要填内网 IP 而不是 `0.0.0.0`：后者会把这两个端口挂到所有网卡上，
+   包括公网网卡，等于绕过 Traefik 直接裸奔。填了内网 IP 之后，公网就访问不到了。
+   如果这台机器只有一张网卡且带公网，那就用防火墙补一刀：
+
+```bash
+ufw allow from 192.168.66.10 to any port 8080 proto tcp
+ufw allow from 192.168.66.10 to any port 8081 proto tcp
+ufw deny 8080
+ufw deny 8081
+```
+
+2. 把 `deploy/traefik-dynamic.example.yml` 拷到 Traefik 主机的 file provider 目录
+   （常见是 `/etc/traefik/dynamic/`），改掉里面的域名、IP、entryPoint 名和证书解析器名。
+   Traefik 开了 `watch: true` 的话会热加载，不用重启。
+
+   如果 Traefik 的静态配置里还没启用 file provider，先加上：
+
+```yaml
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+```
+
+3. 剩下的验证步骤和下一节一样。
+
+两台机器之间走的是内网明文 HTTP。同一内网可以接受；如果中间跨了不可信网络，
+要么套 WireGuard，要么给后端也配上证书并把 Traefik 的 service 改成 `https://`。
 
 ## 四、验证部署是否正常
 

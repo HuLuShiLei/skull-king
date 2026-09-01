@@ -1,0 +1,39 @@
+# Traefik 跑在另一台机器上时用这个。
+#
+# 和 stack.traefik.yml 的区别：这里没有任何 traefik.* 标签，也不接 traefik 网络。
+# Traefik 的 docker provider 只能通过本机 socket 发现容器，跨主机看不见标签，
+# 所以两个容器改为把端口发布到宿主机，再在 Traefik 那台机器上用 file provider
+# 把 upstream 写成 http://<本机内网IP>:<端口>。示例见 traefik-dynamic.example.yml。
+#
+# 路由方式仍然是同源：同一个域名下 /api 和 /hub 去后端，其余去前端，不需要 CORS。
+
+services:
+  server:
+    image: ghcr.io/${IMAGE_OWNER}/skullking-server:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: Data Source=/data/skullking.db
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - skullking-data:/data
+    ports:
+      # BIND_ADDR 建议填本机内网 IP，别用 0.0.0.0——那等于把后端直接挂到
+      # 这台机器的所有网卡上，公网网卡也算。
+      - "${BIND_ADDR:-127.0.0.1}:${SERVER_PORT:-8080}:8080"
+
+  web:
+    image: ghcr.io/${IMAGE_OWNER}/skullking-client:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      # 同源模式留空。Traefik 那边按路径分流，浏览器只认识一个域名。
+      SKULLKING_API_BASE: ${SKULLKING_API_BASE:-}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:${WEB_PORT:-8081}:80"
+    depends_on:
+      server:
+        condition: service_healthy
+
+volumes:
+  skullking-data:

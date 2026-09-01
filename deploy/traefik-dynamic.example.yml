@@ -1,0 +1,52 @@
+# 放到 Traefik 那台机器的 file provider 目录里（常见是 /etc/traefik/dynamic/），
+# 文件名随意，比如 skullking.yml。Traefik 默认会热加载，不用重启。
+#
+# 前提：Traefik 的静态配置里已经启用了 file provider，类似
+#   providers:
+#     file:
+#       directory: /etc/traefik/dynamic
+#       watch: true
+#
+# 把下面三处按实际情况替换：
+#   sk.example.com   → 你的域名
+#   192.168.66.20    → 跑 Portainer 那台机器的内网 IP
+#   websecure / letsencrypt → 你 Traefik 里实际的 entryPoint 名和证书解析器名
+
+http:
+  routers:
+    # 这条必须比 skullking-web 优先级高，否则 Host 规则会把 /api 一起吃掉。
+    skullking-api:
+      rule: "Host(`sk.example.com`) && (PathPrefix(`/api`) || PathPrefix(`/hub`))"
+      priority: 100
+      entryPoints:
+        - websecure
+      service: skullking-api
+      tls:
+        certResolver: letsencrypt
+
+    skullking-web:
+      rule: "Host(`sk.example.com`)"
+      priority: 1
+      entryPoints:
+        - websecure
+      service: skullking-web
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    skullking-api:
+      loadBalancer:
+        # 让后端能从 X-Forwarded-* 里读到真实 Host 和访客 IP。
+        passHostHeader: true
+        servers:
+          - url: "http://192.168.66.20:8080"
+
+    skullking-web:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://192.168.66.20:8081"
+
+# SignalR 的 WebSocket 不需要额外配置，Traefik 会自动转发 Upgrade 头。
+# 但如果你给这两个 router 挂了会改写请求头的中间件，注意别把 Connection
+# 和 Upgrade 洗掉，否则连接会一直重连。
