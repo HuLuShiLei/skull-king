@@ -1,3 +1,4 @@
+import { apiBase } from './config'
 import type {
   AuthResponse,
   CreateRoomRequest,
@@ -33,8 +34,10 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = readToken()
 
-  const response = await fetch(`/api${path}`, {
+  const response = await fetch(`${apiBase}/api${path}`, {
     ...init,
+    // 跨域部署时后端认的是 Authorization 头，不需要带 Cookie。
+    credentials: 'omit',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

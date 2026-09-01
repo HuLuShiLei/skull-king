@@ -20,8 +20,9 @@ export default defineConfig({
     },
   },
   build: {
-    // 直接产出到服务端的静态目录，生产环境只需部署一个进程。
-    outDir: '../src/SkullKing.Server/wwwroot',
+    // 默认产出到服务端的静态目录，本地起一个进程就能跑通全链路。
+    // 拆成两个容器部署时由 Dockerfile 把它指到 dist，交给 nginx 托管。
+    outDir: process.env.SKULLKING_OUT_DIR ?? '../src/SkullKing.Server/wwwroot',
     emptyOutDir: true,
   },
 })

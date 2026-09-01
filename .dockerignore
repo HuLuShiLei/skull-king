@@ -8,8 +8,15 @@
 **/*.db
 **/*.db-shm
 **/*.db-wal
+
+# 后端镜像刻意不带前端产物：前端是独立容器。
+# 本地跑单体模式时这个目录会有东西，别让它混进镜像变成过期的前端。
 src/SkullKing.Server/wwwroot
 client/dist
+
 .git
 .github
 .cursor
+*.md
+deploy/*.yml
+compose.yaml

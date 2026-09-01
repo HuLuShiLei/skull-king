@@ -1,0 +1,69 @@
+# 和 stack.traefik.yml 完全等价，区别只有一个：镜像在服务器上现场构建，
+# 不从镜像仓库拉。适合还没搭 CI/CD、又不想折腾 GHCR 凭据的情况。
+#
+# 用法：Portainer → Stacks → Add stack → Repository，
+# 仓库填 GitHub 地址，Compose path 填 deploy/stack.traefik.build.yml。
+# 每次点 "Pull and redeploy" 就会重新拉代码并重新构建。
+#
+# 代价：构建要在服务器上跑，第一次大约几分钟，也会占几百 MB 的构建缓存。
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.server
+    image: skullking-server:selfbuilt
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: Data Source=/data/skullking.db
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - skullking-data:/data
+    networks:
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+
+      - traefik.http.routers.skullking-api.rule=Host(`${SKULLKING_DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/hub`))
+      - traefik.http.routers.skullking-api.priority=100
+      - traefik.http.routers.skullking-api.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.skullking-api.tls=true
+      - traefik.http.routers.skullking-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.routers.skullking-api.service=skullking-api
+
+      - traefik.http.services.skullking-api.loadbalancer.server.port=8080
+      - traefik.http.services.skullking-api.loadbalancer.passhostheader=true
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.client
+    image: skullking-client:selfbuilt
+    restart: unless-stopped
+    environment:
+      SKULLKING_API_BASE: ${SKULLKING_API_BASE:-}
+      TZ: ${TZ:-Asia/Shanghai}
+    networks:
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+
+      - traefik.http.routers.skullking-web.rule=Host(`${SKULLKING_DOMAIN}`)
+      - traefik.http.routers.skullking-web.priority=1
+      - traefik.http.routers.skullking-web.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.skullking-web.tls=true
+      - traefik.http.routers.skullking-web.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.routers.skullking-web.service=skullking-web
+
+      - traefik.http.services.skullking-web.loadbalancer.server.port=80
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}
+
+volumes:
+  skullking-data:

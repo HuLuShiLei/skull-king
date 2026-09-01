@@ -7,6 +7,13 @@
     <meta name="referrer" content="no-referrer" />
     <!-- 标题会被运行时的伪装设置覆盖，这里给一个同样朴素的默认值 -->
     <title>协作平台</title>
+    <!--
+      后端地址在容器启动时由 entrypoint 替换进来，所以同一个前端镜像能连不同环境的后端。
+      留空表示同源（Traefik 按路径把 /api 和 /hub 分流到后端时就用这种）。
+    -->
+    <script>
+      window.__SKULLKING__ = { apiBase: '__SKULLKING_API_BASE__' }
+    </script>
   </head>
   <body>
     <div id="app"></div>

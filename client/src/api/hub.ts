@@ -5,6 +5,7 @@ import {
   LogLevel,
 } from '@microsoft/signalr'
 
+import { apiBase } from './config'
 import { readToken } from './http'
 import type {
   ChatMessageDto,
@@ -45,8 +46,9 @@ export class GameHubClient {
       return
     }
 
+    // token 走 query 而不是 Authorization 头：WebSocket 握手不支持自定义头。
     const connection = new HubConnectionBuilder()
-      .withUrl(`/hub/game?access_token=${encodeURIComponent(readToken() ?? '')}`)
+      .withUrl(`${apiBase}/hub/game?access_token=${encodeURIComponent(readToken() ?? '')}`)
       .withAutomaticReconnect([0, 1000, 3000, 5000, 10000])
       .configureLogging(LogLevel.Warning)
       .build()

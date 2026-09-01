@@ -14,20 +14,24 @@ dotnet run --project src/SkullKing.Server
 cd client && npm install && npm run dev
 ```
 
-前端 `npm run build` 的产物直接落在 `src/SkullKing.Server/wwwroot`，所以生产环境只有一个进程：
+前端 `npm run build` 的产物默认落在 `src/SkullKing.Server/wwwroot`，所以本机跑一个进程就能通全链路：
 
 ```bash
 cd client && npm run build
 dotnet run --project src/SkullKing.Server -c Release
 ```
 
-Docker：
+数据库首次启动自动迁移，不需要手工建表。默认落在工作目录的 `skullking.db`，改 `ConnectionStrings__Default` 可以换位置。
+
+## 部署
+
+前后端各一个容器：后端只提供 API 和 Hub，前端是 nginx 托管的静态站。后端地址不写死在前端构建里，而是容器启动时注入，所以同一个前端镜像可以连不同环境的后端。
 
 ```bash
-docker compose up -d --build   # http://localhost:8080，数据库在 skullking-data 卷里
+docker compose up -d --build   # 本地自测，打开 http://localhost:8081
 ```
 
-数据库首次启动自动迁移，不需要手工建表。默认落在工作目录的 `skullking.db`，容器里是 `/data/skullking.db`，改 `ConnectionStrings__Default` 可以换位置。
+Portainer + Traefik 的完整步骤、环境变量清单、以及「没有 CI/CD 也能持续部署」的两条路线，都在 [deploy/README.md](deploy/README.md)。仓库里已经带了 GitHub Actions 工作流，推代码就会自动构建镜像推到 GHCR。
 
 ## 怎么玩
 
@@ -57,6 +61,7 @@ src/
   SkullKing.Infrastructure/  EF Core + SQLite
   SkullKing.Server/          Minimal API + SignalR Hub + 托管前端产物
 client/                      Vue 3 + TS + Vite（IM 皮肤）
+deploy/                      两个 Dockerfile、nginx 配置、Portainer stack、部署说明
 tests/                       xUnit，120 个用例
 ```
 

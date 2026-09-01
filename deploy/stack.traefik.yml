@@ -1,0 +1,66 @@
+# Portainer + Traefik 部署用。镜像由 GitHub Actions 推到 GHCR，这里只管拉。
+#
+# 采用同源模式：前端和后端挂同一个域名，Traefik 按路径分流——
+# /api 和 /hub 给后端，其余给前端。浏览器眼里全是同源请求，
+# 不用配 CORS，WebSocket 也不涉及跨站，最省事也最不容易出问题。
+#
+# 在 Portainer 的 Stack 环境变量里至少要填 SKULLKING_DOMAIN 和 IMAGE_OWNER。
+
+services:
+  server:
+    image: ghcr.io/${IMAGE_OWNER}/skullking-server:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: Data Source=/data/skullking.db
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - skullking-data:/data
+    networks:
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+
+      # 优先级要高于前端那条，否则 Host 规则会把 /api 一起吃掉。
+      - traefik.http.routers.skullking-api.rule=Host(`${SKULLKING_DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/hub`))
+      - traefik.http.routers.skullking-api.priority=100
+      - traefik.http.routers.skullking-api.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.skullking-api.tls=true
+      - traefik.http.routers.skullking-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.routers.skullking-api.service=skullking-api
+
+      - traefik.http.services.skullking-api.loadbalancer.server.port=8080
+      # 让后端能从 X-Forwarded-* 里读到访客真实 IP 和外部 scheme。
+      - traefik.http.services.skullking-api.loadbalancer.passhostheader=true
+
+  web:
+    image: ghcr.io/${IMAGE_OWNER}/skullking-client:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      # 同源模式留空。若改成前后端分域名，这里填后端外部地址，
+      # 同时给 server 加上 Cors__AllowedOrigins=https://前端域名。
+      SKULLKING_API_BASE: ${SKULLKING_API_BASE:-}
+      TZ: ${TZ:-Asia/Shanghai}
+    networks:
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+
+      - traefik.http.routers.skullking-web.rule=Host(`${SKULLKING_DOMAIN}`)
+      - traefik.http.routers.skullking-web.priority=1
+      - traefik.http.routers.skullking-web.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.skullking-web.tls=true
+      - traefik.http.routers.skullking-web.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.routers.skullking-web.service=skullking-web
+
+      - traefik.http.services.skullking-web.loadbalancer.server.port=80
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}
+
+volumes:
+  skullking-data:
