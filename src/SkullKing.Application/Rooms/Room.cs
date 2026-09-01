@@ -11,6 +11,8 @@ public sealed class Room
 {
     private const int ChatHistoryLimit = 200;
 
+    private const int EventHistoryLimit = 400;
+
     public required Guid Id { get; init; }
 
     public required string Code { get; init; }
@@ -36,6 +38,13 @@ public sealed class Room
     public long MoveSeq { get; set; }
 
     public List<ChatMessageDto> Chat { get; } = [];
+
+    /// <summary>
+    /// 已经广播出去的事件流水。存的是脱敏后的广播版本，所以可以原样补给
+    /// 任何后来的人——半途来观战、或者刷新了页面的人，一进门就能看到
+    /// 前面打成什么样，而不是对着一片空白等下一手。不落库，重启后从零开始。
+    /// </summary>
+    public List<GameEventDto> Events { get; } = [];
 
     /// <summary>当前行动方的超时时刻，null 表示不限时或无人待行动。</summary>
     public DateTimeOffset? TurnDeadline { get; set; }
@@ -101,6 +110,19 @@ public sealed class Room
 
     public IReadOnlyList<ChatMessageDto> RecentChat(int count = 50) =>
         Chat.Count <= count ? Chat.ToArray() : Chat.Skip(Chat.Count - count).ToArray();
+
+    public void AppendEvent(GameEventDto dto)
+    {
+        Events.Add(dto);
+
+        if (Events.Count > EventHistoryLimit)
+        {
+            Events.RemoveRange(0, Events.Count - EventHistoryLimit);
+        }
+    }
+
+    public IReadOnlyList<GameEventDto> RecentEvents(int count = 150) =>
+        Events.Count <= count ? Events.ToArray() : Events.Skip(Events.Count - count).ToArray();
 
     /// <summary>房间空了且不在对局中就可以回收。</summary>
     public bool IsAbandoned => Members.Values.All(m => !m.IsConnected);

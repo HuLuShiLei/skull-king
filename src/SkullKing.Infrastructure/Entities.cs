@@ -34,6 +34,12 @@ public sealed class RoomRow
 
     public string? PasswordHash { get; set; }
 
+    /// <summary>
+    /// 口令明文。校验只认哈希，留这一份是为了重启后还能把口令拼进邀请链接。
+    /// 房间口令只是「别让路人乱入」的门槛，不是账号凭证，明文落库可以接受。
+    /// </summary>
+    public string? Password { get; set; }
+
     public string HostPlayerId { get; set; } = string.Empty;
 
     public RoomStatus Status { get; set; }

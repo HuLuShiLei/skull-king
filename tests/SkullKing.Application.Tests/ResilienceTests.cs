@@ -55,18 +55,62 @@ public class ResilienceTests
     }
 
     [Fact]
-    public async Task 掉线超过宽限期就交给托管()
+    public async Task 不限时的房间掉线久了才交给托管()
     {
         var harness = await StartedGameAsync(turnSeconds: 0);
 
         await harness.Service.DisconnectAsync("conn-1");
-        harness.Clock.Advance(TimeSpan.FromSeconds(21));
+
+        // 不限时没有截止时间可等，但也得留够重连的时间，不能几十秒就替人出牌。
+        harness.Clock.Advance(TimeSpan.FromSeconds(90));
+        await harness.Service.TickAsync();
+
+        Assert.All(harness.Room.Game!.Bids, Assert.Null);
+
+        harness.Clock.Advance(TimeSpan.FromSeconds(40));
         await harness.Service.TickAsync();
 
         var seatOfPlayer1 = harness.Room.Members[Harness.PlayerId(1)].Seat;
 
         Assert.Equal(0, harness.Room.Game!.Bids[seatOfPlayer1]);
         Assert.Null(harness.Room.Game.Bids[harness.Room.Members[Harness.PlayerId(0)].Seat]);
+    }
+
+    [Fact]
+    public async Task 有限时的房间掉线也要等限时走完才代打()
+    {
+        var harness = await StartedGameAsync(turnSeconds: 60);
+
+        await harness.Service.DisconnectAsync("conn-1");
+
+        // 掉线不再单独加速：判定掉线本身就要两分钟，再叠个短宽限人就没机会回来了。
+        harness.Clock.Advance(TimeSpan.FromSeconds(59));
+        await harness.Service.TickAsync();
+
+        Assert.All(harness.Room.Game!.Bids, Assert.Null);
+
+        harness.Clock.Advance(TimeSpan.FromSeconds(2));
+        await harness.Service.TickAsync();
+
+        Assert.All(harness.Room.Game!.Bids, bid => Assert.Equal(0, bid));
+    }
+
+    [Fact]
+    public async Task 重连回来重新给满限时不会一进门就被代打()
+    {
+        var harness = await StartedGameAsync(turnSeconds: 60);
+
+        await harness.Service.DisconnectAsync("conn-1");
+
+        // 掉线期间限时照走，回到桌上时只剩一秒。
+        harness.Clock.Advance(TimeSpan.FromSeconds(59));
+        await harness.Service.JoinAsync(
+            harness.Code, Harness.PlayerId(1), Harness.Nickname(1), null, "conn-1-new");
+
+        harness.Clock.Advance(TimeSpan.FromSeconds(10));
+        await harness.Service.TickAsync();
+
+        Assert.All(harness.Room.Game!.Bids, Assert.Null);
     }
 
     [Fact]
@@ -281,18 +325,18 @@ public class ResilienceTests
     [Fact]
     public async Task 恢复后留出重连窗口不立即托管()
     {
-        var harness = await StartedGameAsync(turnSeconds: 0);
+        var harness = await StartedGameAsync(turnSeconds: 30);
 
         var revived = new RoomService(harness.Archive, harness.Notifier, NullLogger<RoomService>.Instance, harness.Clock);
         await revived.RestoreAsync();
 
-        // 恢复出来的成员都是断线状态，但不该马上被系统接管。
-        harness.Clock.Advance(TimeSpan.FromSeconds(30));
+        // 恢复出来的成员都是断线状态，限时也早过了，但不该马上被系统接管。
+        harness.Clock.Advance(TimeSpan.FromSeconds(40));
         await revived.TickAsync();
 
         Assert.All(revived.Find(harness.Code)!.Game!.Bids, Assert.Null);
 
-        harness.Clock.Advance(TimeSpan.FromSeconds(70));
+        harness.Clock.Advance(TimeSpan.FromSeconds(60));
         await revived.TickAsync();
 
         Assert.All(revived.Find(harness.Code)!.Game!.Bids, bid => Assert.Equal(0, bid));

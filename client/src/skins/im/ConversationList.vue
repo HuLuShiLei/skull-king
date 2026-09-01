@@ -2,8 +2,9 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import ModalShell from './ModalShell.vue'
 import RoomEntryDialog from './RoomEntryDialog.vue'
-import type { RoomSummaryDto } from '@/api/types'
+import { RoomStatusValues, type RoomSummaryDto } from '@/api/types'
 import { useLobbyStore } from '@/stores/lobby'
 import { useRoomStore } from '@/stores/room'
 
@@ -32,8 +33,29 @@ function statusText(item: RoomSummaryDto): string {
   return item.status === 1 ? `${base} · 讨论进行中` : `${base} · 等待成员加入`
 }
 
+/**
+ * 一个人不能同时坐两张牌桌，所以点开别的群等于离开手上这个。
+ * 后果不小（等人中的群会退群、只剩自己的话直接解散），先问一句。
+ */
+const pending = ref<RoomSummaryDto | null>(null)
+
+const leavingPlaying = computed(() => room.state?.status === RoomStatusValues.Playing)
+
+const alone = computed(() => (room.state?.members.length ?? 0) <= 1)
+
 function open(item: RoomSummaryDto) {
-  void router.push({ name: 'room', params: { code: item.code } })
+  if (room.code && room.code !== item.code) {
+    pending.value = item
+    return
+  }
+
+  void go(item)
+}
+
+function go(item: RoomSummaryDto) {
+  pending.value = null
+
+  return router.push({ name: 'room', params: { code: item.code } })
 }
 </script>
 
@@ -79,6 +101,29 @@ function open(item: RoomSummaryDto) {
     </footer>
 
     <RoomEntryDialog v-if="dialogTab" :tab="dialogTab" @close="dialogTab = null" />
+
+    <ModalShell v-if="pending" title="切换会话" :width="400" @close="pending = null">
+      <div class="confirm">
+        <p>
+          要离开「{{ room.state?.settings.name ?? room.code }}」，去「{{ pending.name }}」吗？
+        </p>
+
+        <p v-if="leavingPlaying" class="secondary">
+          手上这场讨论还没结束。切过去之后你的发言会由系统代为处理，随时点回来就能接着参与。
+        </p>
+        <p v-else-if="alone" class="secondary">
+          群里现在只有你一个人，切过去这个群就直接解散了，回不来。
+        </p>
+        <p v-else class="secondary">
+          等于退出这个群。之后想回来得重新点进去，群里没人了会自动解散。
+        </p>
+
+        <div class="actions">
+          <button class="btn" @click="pending = null">留在这里</button>
+          <button class="btn btn-primary" @click="go(pending)">切过去</button>
+        </div>
+      </div>
+    </ModalShell>
   </nav>
 </template>
 
@@ -179,5 +224,24 @@ function open(item: RoomSummaryDto) {
 
 .foot > span {
   flex: 1;
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.confirm p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
 }
 </style>

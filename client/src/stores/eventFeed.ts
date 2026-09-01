@@ -21,7 +21,7 @@ export function pauseAfter(event: GameEventDto): number {
 export function toFeedItem(
   event: GameEventDto,
   nicknameOf: (seat: number) => string,
-  at = Date.now(),
+  at = event.at ? Date.parse(event.at) : Date.now(),
 ): FeedItem | null {
   const id = nextFeedId()
 

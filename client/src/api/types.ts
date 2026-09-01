@@ -22,7 +22,7 @@ export interface RoomSettingsDto {
   maxRounds: number
   turnSeconds: number
   hasPassword: boolean
-  /** 口令明文，只有房里的人拿得到，用来拼邀请链接；服务端重启后会是 null。 */
+  /** 口令明文，只有房里的人拿得到，用来拼邀请链接。 */
   password: string | null
 }
 
@@ -159,6 +159,7 @@ export interface RoomStateDto {
   members: RoomMemberDto[]
   game: GameViewDto | null
   recentChat: ChatMessageDto[]
+  recentEvents: GameEventDto[]
 }
 
 export type GameEventType =
@@ -200,6 +201,8 @@ export interface GameEventDto {
   totalScores: number[] | null
   winnerSeats: number[] | null
   text: string | null
+  /** 事件发生时刻。补发的历史流水才有，靠它和聊天记录排到正确位置。 */
+  at: string | null
 }
 
 export interface RoomActionResult {

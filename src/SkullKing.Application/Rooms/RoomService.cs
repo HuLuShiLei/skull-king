@@ -138,6 +138,13 @@ public sealed partial class RoomService(
                 if (!existing.IsConnected)
                 {
                     await BroadcastNoticeAsync(room, $"{nickname} 重新上线", ct);
+
+                    // 掉线期间这一步的限时照样在走，回来时往往只剩几秒、甚至早就过期了，
+                    // 于是人刚进门就被系统替他出了牌。只要牌局还等着他动，就重新给满时间。
+                    if (IsWaitingOn(room, existing))
+                    {
+                        RefreshTurnDeadline(room);
+                    }
                 }
             }
 
@@ -565,7 +572,8 @@ public sealed partial class RoomService(
             viewer.Seat,
             members,
             game,
-            room.RecentChat());
+            room.RecentChat(),
+            room.RecentEvents());
     }
 
     private static int ScoreOf(Room room, int seat) =>
@@ -586,7 +594,10 @@ public sealed partial class RoomService(
 
     private async Task BroadcastNoticeAsync(Room room, string text, CancellationToken ct)
     {
-        await notifier.BroadcastEventAsync(room.Code, GameProjector.SystemNotice(text, ++room.EventSeq), ct);
+        var dto = GameProjector.SystemNotice(text, ++room.EventSeq) with { At = Now };
+
+        room.AppendEvent(dto);
+        await notifier.BroadcastEventAsync(room.Code, dto, ct);
     }
 
     /// <summary>成员变动后的统一收尾：落库、推快照、必要时回收房间。</summary>
@@ -710,6 +721,7 @@ public sealed partial class RoomService(
         room.Settings.MaxRounds,
         room.Settings.TurnSeconds,
         room.Settings.PasswordHash,
+        room.Settings.Password,
         room.HostPlayerId,
         room.Status,
         room.CreatedAt,

@@ -34,6 +34,33 @@ public class GameOrchestrationTests
     }
 
     [Fact]
+    public async Task 半途来观战能立刻拿到前面的流水()
+    {
+        var harness = await StartedGameAsync(maxRounds: 3);
+
+        await harness.BidAllAsync(0, 1, 0);
+        await harness.PlayFirstLegalAsync();
+
+        await harness.JoinAsync(7);
+
+        var state = harness.StateOf(7);
+
+        // 旁观者不用等着一条条重放，进门就该看到前面打成什么样。
+        Assert.Equal(-1, state.YourSeat);
+        Assert.NotNull(state.Game);
+        Assert.Contains(state.RecentEvents, e => e.Type == GameEventTypes.GameStarted);
+        Assert.Contains(state.RecentEvents, e => e.Type == GameEventTypes.BidsRevealed);
+        Assert.Contains(state.RecentEvents, e => e.Type == GameEventTypes.CardPlayed);
+
+        // 靠时间戳才能和聊天记录排到一起。
+        Assert.All(state.RecentEvents, e => Assert.NotNull(e.At));
+
+        // 看得到桌面，但拿不到任何人的手牌。
+        Assert.Empty(state.Game.MyHand);
+        Assert.Empty(state.Game.PlayableCardIds);
+    }
+
+    [Fact]
     public async Task 叫牌在全员完成前对别人保密()
     {
         var harness = await StartedGameAsync();

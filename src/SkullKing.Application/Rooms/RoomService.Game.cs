@@ -10,8 +10,11 @@ namespace SkullKing.Application.Rooms;
 
 public sealed partial class RoomService
 {
-    /// <summary>掉线的人不必等满整个回合限时，但也要留够刷新页面重连的时间。</summary>
-    private static readonly TimeSpan DisconnectGrace = TimeSpan.FromSeconds(20);
+    /// <summary>
+    /// 不限时的房间里，掉线的人多久之后交给托管。设了限时的房间用不上它——
+    /// 那边等这一步的限时走完就行，掉线不再单独加速。
+    /// </summary>
+    private static readonly TimeSpan DisconnectGrace = TimeSpan.FromMinutes(2);
 
     /// <summary>
     /// 掉线多久之后才真的把人请出房间。给得比较宽松是因为摸鱼场景下
@@ -196,17 +199,39 @@ public sealed partial class RoomService
                     break;
             }
 
-            var dto = GameProjector.ToBroadcastDto(domainEvent, ++room.EventSeq);
-
-            if (dto is not null)
+            if (GameProjector.ToBroadcastDto(domainEvent, ++room.EventSeq) is { } dto)
             {
-                await notifier.BroadcastEventAsync(room.Code, dto, ct);
+                var stamped = dto with { At = Now };
+
+                room.AppendEvent(stamped);
+                await notifier.BroadcastEventAsync(room.Code, stamped, ct);
             }
         }
 
         RefreshTurnDeadline(room);
         await PushStateAsync(room, ct);
         await notifier.BroadcastLobbyChangedAsync(ct);
+    }
+
+    /// <summary>牌局是不是正卡在这个人身上：他还没叫牌，或者轮到他出牌。</summary>
+    private static bool IsWaitingOn(Room room, RoomMember member)
+    {
+        if (room.Status != RoomStatus.Playing || room.Game is not { } game || member.IsSpectator)
+        {
+            return false;
+        }
+
+        if (member.Seat < 0 || member.Seat >= game.PlayerCount)
+        {
+            return false;
+        }
+
+        return game.Phase switch
+        {
+            GamePhase.Bidding => !game.Bids[member.Seat].HasValue,
+            GamePhase.Playing => game.CurrentSeat == member.Seat,
+            _ => false
+        };
     }
 
     private void RefreshTurnDeadline(Room room)
@@ -330,6 +355,15 @@ public sealed partial class RoomService
                 return true;
             }
 
+            // 设了限时就老老实实等这一步的限时走完，掉线不再单独加速：光是判定
+            // 掉线本身就要两分钟，再叠一个短宽限，人还在重连牌就被打光了。
+            if (room.Settings.TurnSeconds > 0)
+            {
+                return false;
+            }
+
+            // 不限时的房间没有截止时间可等，掉线的人总得有个兜底，
+            // 否则一个人切走就能让整桌无限期停在这里。
             var member = room.MemberAtSeat(seat);
 
             return member is { IsConnected: false, DisconnectedAt: { } since } && now - since >= DisconnectGrace;

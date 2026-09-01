@@ -25,6 +25,7 @@ public sealed class EfGameArchive(IDbContextFactory<SkullKingDbContext> factory)
         row.MaxRounds = room.MaxRounds;
         row.TurnSeconds = room.TurnSeconds;
         row.PasswordHash = room.PasswordHash;
+        row.Password = room.Password;
         row.HostPlayerId = room.HostPlayerId;
         row.Status = room.Status;
 
@@ -62,9 +63,12 @@ public sealed class EfGameArchive(IDbContextFactory<SkullKingDbContext> factory)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
 
+        // 连还在等人的房间一起捞回来。只恢复对局中的话，每次发版所有刚开好、
+        // 正在等人的房间都会凭空消失，邀请链接也跟着失效。恢复出来的成员都是
+        // 掉线状态，真没人回来的话十分钟后会被巡检清空、房间自动回收。
         var rooms = await db.Rooms
             .AsNoTracking()
-            .Where(r => r.Status == RoomStatus.Playing)
+            .Where(r => r.Status != RoomStatus.Finished)
             .Include(r => r.Members)
             .Include(r => r.Games.Where(g => g.EndedAt == null))
                 .ThenInclude(g => g.Moves)
@@ -89,6 +93,7 @@ public sealed class EfGameArchive(IDbContextFactory<SkullKingDbContext> factory)
                     r.MaxRounds,
                     r.TurnSeconds,
                     r.PasswordHash,
+                    r.Password,
                     r.HostPlayerId,
                     r.Status,
                     r.CreatedAt,

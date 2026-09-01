@@ -18,9 +18,8 @@ public sealed record RoomSettings
     public string? PasswordHash { get; init; }
 
     /// <summary>
-    /// 口令明文，只活在内存里，唯一用途是把口令拼进邀请链接——
-    /// 哈希不可逆，不留一份明文就没法生成免输口令的链接。
-    /// 进程重启后房间是从哈希恢复的，这里会丢，链接退化成要手输口令。
+    /// 口令明文，唯一用途是把口令拼进邀请链接——哈希不可逆，不留一份明文
+    /// 就没法生成免输口令的链接。校验一律走 <see cref="PasswordHash"/>。
     /// </summary>
     public string? Password { get; init; }
 

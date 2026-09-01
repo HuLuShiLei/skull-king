@@ -56,7 +56,8 @@ public sealed partial class RoomService
                 MaxPlayers = snapshot.MaxPlayers,
                 MaxRounds = snapshot.MaxRounds,
                 TurnSeconds = snapshot.TurnSeconds,
-                PasswordHash = snapshot.PasswordHash
+                PasswordHash = snapshot.PasswordHash,
+                Password = snapshot.Password
             }
         };
 
@@ -85,6 +86,10 @@ public sealed partial class RoomService
             room.GameId = game.Id;
             room.MoveSeq = game.Moves.Count == 0 ? 0 : game.Moves.Max(m => m.Seq);
             room.AutoPlaySuppressedUntil = Now + ResumeGrace;
+
+            // 截止时间不落库，重启后必须重新起算。漏掉的话托管就彻底不会触发了
+            // ——设了限时的房间只看这个时间，null 等于整局永远卡在这一步。
+            RefreshTurnDeadline(room);
 
             if (room.Game.Phase == GamePhase.Finished)
             {

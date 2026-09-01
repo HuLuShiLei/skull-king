@@ -22,10 +22,7 @@ public sealed record RoomSettingsDto
 
     public bool HasPassword { get; init; }
 
-    /// <summary>
-    /// 口令明文，只发给已经在房里的人，用来把口令拼进邀请链接。
-    /// 落库的只有哈希，所以进程重启后这里会是空的。
-    /// </summary>
+    /// <summary>口令明文，只发给已经在房里的人，用来把口令拼进邀请链接。</summary>
     public string? Password { get; init; }
 }
 
@@ -89,7 +86,9 @@ public sealed record RoomStateDto(
     int YourSeat,
     IReadOnlyList<RoomMemberDto> Members,
     GameViewDto? Game,
-    IReadOnlyList<ChatMessageDto> RecentChat);
+    IReadOnlyList<ChatMessageDto> RecentChat,
+    /// <summary>本房间已经播过的事件流水，供进房的人一次性补齐前面的战况。</summary>
+    IReadOnlyList<GameEventDto> RecentEvents);
 
 public sealed record JoinRoomRequest(string Code, string? Password);
 

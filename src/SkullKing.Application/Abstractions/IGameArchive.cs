@@ -41,6 +41,8 @@ public sealed record PersistedRoom(
     int MaxRounds,
     int TurnSeconds,
     string? PasswordHash,
+    /// <summary>口令明文，只用来把口令拼进邀请链接；校验一律走哈希。</summary>
+    string? Password,
     string HostPlayerId,
     RoomStatus Status,
     DateTimeOffset CreatedAt,

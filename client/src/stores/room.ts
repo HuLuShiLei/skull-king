@@ -73,6 +73,12 @@ export const useRoomStore = defineStore('room', () => {
   }
 
   function applyEvent(event: GameEventDto): number {
+    // 首份快照还没到：这些事件都会在快照的流水里再来一遍，现在画上去只会让
+    // 顺序错乱——历史是后到的，却应该排在它们前面。
+    if (!state.value) {
+      return 0
+    }
+
     const item = toFeedItem(event, nicknameOf)
 
     if (item) {
@@ -136,16 +142,37 @@ export const useRoomStore = defineStore('room', () => {
     if (!state.value) {
       state.value = next
       syncCountdown()
-      seedChatHistory(next)
+      seedHistory(next)
       return
     }
 
     enqueue({ type: 'state', payload: next })
   }
 
-  function seedChatHistory(next: RoomStateDto) {
+  /**
+   * 把服务端补发的流水一次性铺进消息流。半途来观战、或者刷新了页面的人靠这个
+   * 立刻看到前面打成什么样——不走播放队列，那是给实时事件做动画用的，
+   * 拿来补历史就得一条条干等。
+   */
+  function seedHistory(next: RoomStateDto) {
+    const history: FeedItem[] = []
+
+    for (const event of next.recentEvents) {
+      const item = toFeedItem(event, nicknameOf)
+
+      if (item) {
+        history.push(item)
+      }
+    }
+
     for (const message of next.recentChat) {
-      push({ kind: 'chat', id: nextFeedId(), at: Date.parse(message.sentAt), message })
+      history.push({ kind: 'chat', id: nextFeedId(), at: Date.parse(message.sentAt), message })
+    }
+
+    history.sort((a, b) => a.at - b.at)
+
+    for (const item of history) {
+      push(item)
     }
   }
 

@@ -56,4 +56,10 @@ public sealed record GameEventDto
 
     /// <summary>系统提示文案，例如某人加入或被托管。</summary>
     public string? Text { get; init; }
+
+    /// <summary>
+    /// 事件发生的时刻。实时推送时用不着（客户端收到就是现在），
+    /// 补发历史流水时靠它和聊天记录排到正确的位置。回放不填。
+    /// </summary>
+    public DateTimeOffset? At { get; init; }
 }
