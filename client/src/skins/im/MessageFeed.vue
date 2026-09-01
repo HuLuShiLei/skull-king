@@ -353,4 +353,29 @@ watch(
   font-size: 12px;
   color: var(--text-secondary);
 }
+
+@media (max-width: 800px) {
+  .feed {
+    padding: 12px 12px 16px;
+    gap: 10px;
+  }
+
+  .card-block {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .result {
+    padding: 8px 10px;
+  }
+
+  .score-table {
+    font-size: 11px;
+  }
+
+  .score-table th,
+  .score-table td {
+    padding: 4px 4px;
+  }
+}
 </style>

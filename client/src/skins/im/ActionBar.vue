@@ -157,7 +157,7 @@ async function send() {
       <textarea
         v-model="draft"
         class="editor"
-        rows="2"
+        rows="1"
         placeholder="输入消息，回车发送"
         @keydown.enter.exact.prevent="send"
       />
@@ -223,9 +223,11 @@ async function send() {
   white-space: nowrap;
 }
 
-.quick-item:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+@media (hover: hover) {
+  .quick-item:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 }
 
 .card-slot {
@@ -267,6 +269,7 @@ async function send() {
 
 .editor {
   width: 100%;
+  min-height: 44px;
   border: none;
   outline: none;
   resize: none;
@@ -281,5 +284,45 @@ async function send() {
 
 .tip {
   font-size: 11px;
+}
+
+@media (max-width: 800px) {
+  .status {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  .hint {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+
+  .quick-row {
+    padding: 8px 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .quick-row:not(.cards) {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .quick-item {
+    min-height: 36px;
+  }
+
+  .composer {
+    padding: 6px 12px calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .editor {
+    font-size: 16px;
+    min-height: 24px;
+  }
+
+  .tip {
+    display: none;
+  }
 }
 </style>

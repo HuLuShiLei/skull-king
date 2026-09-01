@@ -104,4 +104,11 @@ const label = computed(() => describeCard(props.card, props.tigressMode))
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+@media (max-width: 800px) {
+  .chip.interactive.md {
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+}
 </style>

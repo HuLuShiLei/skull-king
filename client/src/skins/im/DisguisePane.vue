@@ -5,6 +5,7 @@ import { DECOY_THREADS } from './decoyConversation'
 
 const active = ref(0)
 const draft = ref('')
+const browsing = ref(false)
 
 const thread = computed(() => DECOY_THREADS[active.value])
 
@@ -20,7 +21,7 @@ function clockOf(minutesAgo: number): string {
 
 <template>
   <!-- 伪装态：结构和真界面完全一致，但没有任何牌桌痕迹，也不显示未读角标 -->
-  <div class="shell">
+  <div class="shell" :class="{ focused: browsing }">
     <aside class="rail">
       <div class="avatar rail-avatar">我</div>
       <button class="rail-btn active"><span>消息</span></button>
@@ -39,7 +40,7 @@ function clockOf(minutesAgo: number): string {
           :key="item.name"
           class="item"
           :class="{ active: index === active }"
-          @click="active = index"
+          @click="active = index; browsing = true"
         >
           <div class="avatar">{{ item.name.slice(0, 1) }}</div>
           <div class="body">
@@ -52,6 +53,7 @@ function clockOf(minutesAgo: number): string {
 
     <main class="content">
       <header class="topbar">
+        <button class="btn btn-text back-btn" type="button" @click="browsing = false">返回</button>
         <div>
           <h1>{{ thread.name }}</h1>
           <p class="secondary">{{ thread.messages.length }} 条消息</p>
@@ -167,10 +169,6 @@ function clockOf(minutesAgo: number): string {
   border: none;
   background: transparent;
   text-align: left;
-}
-
-.item:hover {
-  background: var(--bg-hover);
 }
 
 .item.active {
@@ -294,5 +292,79 @@ h1 {
 .send-row {
   display: flex;
   justify-content: flex-end;
+}
+
+.back-btn {
+  display: none;
+}
+
+@media (hover: hover) {
+  .item:hover {
+    background: var(--bg-hover);
+  }
+}
+
+@media (max-width: 800px) {
+  .shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .rail {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 6px 10px;
+    padding-top: calc(6px + env(safe-area-inset-top));
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .rail-avatar {
+    margin-bottom: 0;
+  }
+
+  .rail-btn {
+    width: auto;
+    min-height: 36px;
+    padding: 6px 10px;
+  }
+
+  .content {
+    display: none;
+  }
+
+  .shell.focused {
+    grid-template-rows: 1fr;
+  }
+
+  .shell.focused .rail,
+  .shell.focused .list {
+    display: none;
+  }
+
+  .shell.focused .content {
+    display: flex;
+  }
+
+  .back-btn {
+    display: inline-flex;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    padding-top: calc(8px + env(safe-area-inset-top));
+  }
+
+  .feed {
+    padding: 12px;
+  }
+
+  .composer {
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
+  }
 }
 </style>

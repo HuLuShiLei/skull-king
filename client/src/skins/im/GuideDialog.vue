@@ -291,6 +291,18 @@ h3 {
   font-size: 12px;
 }
 
+@media (max-width: 800px) {
+  .mapping {
+    display: block;
+    overflow-x: auto;
+  }
+
+  .score td:last-child {
+    width: auto;
+    white-space: normal;
+  }
+}
+
 kbd {
   padding: 1px 5px;
   border: 1px solid var(--line-strong);

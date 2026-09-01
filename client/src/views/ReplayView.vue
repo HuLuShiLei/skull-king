@@ -107,4 +107,16 @@ h1 {
 .hint {
   margin: 40px auto;
 }
+
+@media (max-width: 800px) {
+  .topbar {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+  }
+
+  .tools {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
 </style>

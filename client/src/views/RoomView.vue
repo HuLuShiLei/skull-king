@@ -14,6 +14,7 @@ const router = useRouter()
 
 const copied = ref(false)
 const failed = ref('')
+const rosterOpen = ref(false)
 
 // 带上口令，对方点开就能直接进，不用你再单独把口令发一遍。
 const inviteLink = computed(() => {
@@ -38,6 +39,7 @@ const progress = computed(() => {
 })
 
 async function enter() {
+  rosterOpen.value = false
   const password = typeof route.query.pw === 'string' ? route.query.pw : undefined
   const ok = await room.join(props.code, password)
 
@@ -84,6 +86,8 @@ onBeforeUnmount(() => {
 <template>
   <div class="room">
     <header class="topbar">
+      <button class="btn btn-text back-btn" type="button" @click="router.push('/')">返回</button>
+
       <div class="title">
         <h1 class="ellipsis">{{ room.state?.settings.name ?? props.code }}</h1>
         <p class="secondary">
@@ -93,7 +97,10 @@ onBeforeUnmount(() => {
 
       <div class="tools">
         <button class="btn btn-sm" @click="copyInvite">
-          {{ copied ? '链接已复制' : '邀请' }}
+          {{ copied ? '已复制' : '邀请' }}
+        </button>
+        <button class="btn btn-sm members-btn" type="button" @click="rosterOpen = !rosterOpen">
+          成员
         </button>
       </div>
     </header>
@@ -115,7 +122,15 @@ onBeforeUnmount(() => {
         <component :is="skin.actions" />
       </section>
 
-      <component :is="skin.roster" />
+      <div class="roster-wrap" :class="{ open: rosterOpen }">
+        <button
+          class="roster-mask"
+          type="button"
+          aria-label="关闭成员列表"
+          @click="rosterOpen = false"
+        />
+        <component :is="skin.roster" />
+      </div>
     </div>
   </div>
 </template>
@@ -176,5 +191,72 @@ h1 {
   flex: 1;
   min-width: 0;
   min-height: 0;
+}
+
+.back-btn,
+.members-btn,
+.roster-mask {
+  display: none;
+}
+
+.roster-wrap {
+  display: flex;
+  min-height: 0;
+}
+
+@media (max-width: 800px) {
+  .topbar {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .back-btn,
+  .members-btn {
+    display: inline-flex;
+    flex: none;
+  }
+
+  .roster-wrap {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    pointer-events: none;
+  }
+
+  .roster-wrap.open {
+    pointer-events: auto;
+  }
+
+  .roster-mask {
+    display: block;
+    position: absolute;
+    inset: 0;
+    border: none;
+    background: rgba(31, 35, 41, 0.28);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .roster-wrap.open .roster-mask {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .roster-wrap :deep(.roster) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(300px, 86vw);
+    padding-top: env(safe-area-inset-top);
+    transform: translateX(100%);
+    transition: transform 0.18s ease;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .roster-wrap.open :deep(.roster) {
+    transform: translateX(0);
+  }
 }
 </style>

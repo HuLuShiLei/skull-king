@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 
 import ConversationList from './ConversationList.vue'
 import GuideDialog from './GuideDialog.vue'
@@ -13,25 +14,30 @@ const connection = useConnectionStore()
 const lobby = useLobbyStore()
 const session = useSessionStore()
 const stealth = useStealthStore()
+const route = useRoute()
 
 const settingsOpen = ref(false)
 const guideOpen = ref(false)
+
+// 大厅时列表占满；进了群 / 历史 / 邀请落地页就只留聊天窗。
+const focused = computed(() => route.name !== 'lobby')
 
 onMounted(async () => {
   await connection.ensureStarted()
   await connection.hub.subscribeLobby()
   await lobby.refresh()
+  await lobby.loadHistory()
 })
 </script>
 
 <template>
-  <div class="shell">
+  <div class="shell" :class="{ focused }">
     <aside class="rail">
       <div class="avatar rail-avatar" :title="session.nickname">
         {{ session.nickname.slice(0, 1) }}
       </div>
 
-      <button class="rail-btn active" title="消息">
+      <button class="rail-btn" :class="{ active: !focused }" title="消息">
         <span>消息</span>
       </button>
 
@@ -134,5 +140,50 @@ onMounted(async () => {
   font-size: 11px;
   color: var(--text-muted);
   pointer-events: none;
+}
+
+@media (max-width: 800px) {
+  .shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .rail {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 6px 10px;
+    padding-top: calc(6px + env(safe-area-inset-top));
+    padding-left: calc(10px + env(safe-area-inset-left));
+    padding-right: calc(10px + env(safe-area-inset-right));
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .rail-avatar {
+    margin-bottom: 0;
+  }
+
+  .rail-btn {
+    width: auto;
+    min-height: 36px;
+    padding: 6px 10px;
+  }
+
+  .content {
+    display: none;
+  }
+
+  .shell.focused :deep(.list) {
+    display: none;
+  }
+
+  .shell.focused .content {
+    display: flex;
+  }
+
+  .taskbar-hint {
+    bottom: calc(8px + env(safe-area-inset-bottom));
+  }
 }
 </style>

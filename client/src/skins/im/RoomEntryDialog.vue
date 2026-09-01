@@ -257,4 +257,10 @@ async function submitJoin() {
   justify-content: flex-end;
   gap: 8px;
 }
+
+@media (max-width: 800px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

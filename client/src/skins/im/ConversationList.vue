@@ -91,6 +91,28 @@ function go(item: RoomSummaryDto) {
           </div>
         </div>
       </button>
+
+      <section v-if="lobby.history.length > 0" class="history-pane">
+        <h3>最近记录</h3>
+        <button
+          v-for="item in lobby.history"
+          :key="item.gameId"
+          class="item"
+          @click="router.push({ name: 'replay', params: { gameId: item.gameId } })"
+        >
+          <div class="body">
+            <div class="row">
+              <span class="name ellipsis">{{ item.roomName || item.roomCode }}</span>
+              <span class="code">{{ item.nicknames.length }} 人</span>
+            </div>
+            <div class="row">
+              <span class="preview ellipsis secondary">
+                {{ item.yourScore }} 分{{ item.youWon ? ' · 第一' : '' }}
+              </span>
+            </div>
+          </div>
+        </button>
+      </section>
     </div>
 
     <footer v-if="room.code" class="foot">
@@ -174,12 +196,14 @@ function go(item: RoomSummaryDto) {
   text-align: left;
 }
 
-.item:hover {
-  background: var(--bg-hover);
-}
-
 .item.active {
   background: var(--bg-active);
+}
+
+@media (hover: hover) {
+  .item:hover {
+    background: var(--bg-hover);
+  }
 }
 
 .body {
@@ -239,5 +263,41 @@ function go(item: RoomSummaryDto) {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
+}
+
+.history-pane {
+  display: none;
+}
+
+@media (max-width: 800px) {
+  .item {
+    min-height: 56px;
+    padding: 12px 16px;
+  }
+
+  .add {
+    min-width: 36px;
+    min-height: 36px;
+    font-size: 22px;
+  }
+
+  .history-pane {
+    display: block;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+
+  .history-pane h3 {
+    margin: 0;
+    padding: 8px 16px 4px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+
+  .foot {
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
 }
 </style>

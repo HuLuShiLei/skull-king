@@ -48,6 +48,7 @@ html,
 body,
 #app {
   height: 100%;
+  height: 100dvh;
   margin: 0;
 }
 
@@ -56,6 +57,13 @@ body,
    那玩意儿一眼就能看出不是个正经办公软件。 */
 body {
   overflow: hidden;
+  overscroll-behavior: none;
+}
+
+button,
+.btn,
+.item {
+  touch-action: manipulation;
 }
 
 body {
@@ -115,8 +123,10 @@ select {
   white-space: nowrap;
 }
 
-.btn:hover:not(:disabled) {
-  background: var(--bg-hover);
+@media (hover: hover) {
+  .btn:hover:not(:disabled) {
+    background: var(--bg-hover);
+  }
 }
 
 .btn:disabled {
@@ -130,8 +140,10 @@ select {
   color: var(--text-inverse);
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: var(--accent-hover);
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
 }
 
 .btn-text {
@@ -141,9 +153,11 @@ select {
   padding: 4px 8px;
 }
 
-.btn-text:hover:not(:disabled) {
-  background: var(--bg-hover);
-  color: var(--text);
+@media (hover: hover) {
+  .btn-text:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
 }
 
 .btn-sm {
@@ -201,4 +215,24 @@ select {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 窄于这个宽度，三栏 IM 会挤成碎片，改成列表和聊天二选一。 */
+@media (max-width: 800px) {
+  html,
+  body,
+  #app {
+    height: 100dvh;
+  }
+
+  /* iOS 会把小于 16px 的输入框聚焦时整页放大 */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  .btn {
+    min-height: 36px;
+  }
 }

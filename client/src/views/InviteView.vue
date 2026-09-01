@@ -80,13 +80,14 @@ function enter() {
   place-items: center;
   flex: 1;
   padding: 40px;
+  padding-top: calc(40px + env(safe-area-inset-top));
 }
 
 .box {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  width: 280px;
+  width: min(280px, 100%);
   padding: 20px;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);

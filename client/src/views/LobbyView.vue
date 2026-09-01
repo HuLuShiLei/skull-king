@@ -60,6 +60,12 @@ onMounted(() => {
   padding: 40px;
 }
 
+@media (max-width: 800px) {
+  .empty {
+    padding: 24px 16px;
+  }
+}
+
 .card {
   max-width: 420px;
   text-align: center;

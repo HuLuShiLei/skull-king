@@ -60,4 +60,17 @@ h2 {
   padding: 16px;
   overflow-y: auto;
 }
+
+@media (max-width: 800px) {
+  .backdrop {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+      env(safe-area-inset-left);
+  }
+
+  .modal {
+    width: min(100%, calc(100vw - 24px)) !important;
+    max-width: none;
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+}
 </style>
