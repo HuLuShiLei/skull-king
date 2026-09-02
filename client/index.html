@@ -30,6 +30,8 @@
         var color = dark ? '#141516' : '#ebedf0'
         var meta = document.querySelector('meta[name="theme-color"]')
         if (meta) meta.setAttribute('content', color)
+        var scheme = document.querySelector('meta[name="color-scheme"]')
+        if (scheme) scheme.setAttribute('content', pref === 'system' ? 'light dark' : theme)
       })()
     </script>
     <!-- 标题会被运行时的伪装设置覆盖，这里给一个同样朴素的默认值 -->

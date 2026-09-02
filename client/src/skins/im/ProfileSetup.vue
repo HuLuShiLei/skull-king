@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
+import ThemePicks from './ThemePicks.vue'
 import { useSessionStore } from '@/stores/session'
 
 const session = useSessionStore()
@@ -69,6 +70,11 @@ async function submit() {
       <button type="button" class="btn btn-text pick" @click="nickname = session.suggest()">
         懒得想，随便给我起一个
       </button>
+
+      <div class="theme">
+        <span class="muted">主题</span>
+        <ThemePicks />
+      </div>
     </form>
   </div>
 </template>
@@ -79,6 +85,8 @@ async function submit() {
   place-items: center;
   height: 100%;
   padding: 20px;
+  padding-top: calc(20px + env(safe-area-inset-top));
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
 }
 
 .box {
@@ -129,6 +137,19 @@ h2 {
 
 .pick {
   align-self: center;
+  font-size: 12px;
+}
+
+.theme {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.theme span {
   font-size: 12px;
 }
 </style>

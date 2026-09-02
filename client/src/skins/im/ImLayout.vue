@@ -106,10 +106,16 @@ onMounted(async () => {
   font-size: 12px;
 }
 
-.rail-btn:hover,
 .rail-btn.active {
   background: var(--bg-panel);
   color: var(--accent);
+}
+
+@media (hover: hover) {
+  .rail-btn:hover {
+    background: var(--bg-panel);
+    color: var(--accent);
+  }
 }
 
 .rail-spacer {
