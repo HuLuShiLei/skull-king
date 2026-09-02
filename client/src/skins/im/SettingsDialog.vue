@@ -4,6 +4,12 @@ import { ref } from 'vue'
 import ModalShell from './ModalShell.vue'
 import { useSessionStore } from '@/stores/session'
 import { useStealthStore } from '@/stores/stealth'
+import {
+  getThemePreference,
+  setThemePreference,
+  THEME_OPTIONS,
+  type ThemePreference,
+} from '@/theme'
 
 const emit = defineEmits<{ close: [] }>()
 
@@ -13,6 +19,12 @@ const stealth = useStealthStore()
 const nickname = ref(session.nickname)
 const capturing = ref(false)
 const saving = ref(false)
+const theme = ref(getThemePreference())
+
+function pickTheme(next: ThemePreference) {
+  setThemePreference(next)
+  theme.value = next
+}
 
 async function saveNickname() {
   const next = nickname.value.trim()
@@ -69,6 +81,29 @@ async function onNotifyToggle(on: boolean) {
           <button class="btn" :disabled="saving" @click="saveNickname">保存</button>
         </div>
       </label>
+    </section>
+
+    <section class="group">
+      <h3>外观</h3>
+
+      <div class="field">
+        <span>主题</span>
+        <div class="theme-picks" role="radiogroup" aria-label="主题">
+          <button
+            v-for="option in THEME_OPTIONS"
+            :key="option.id"
+            type="button"
+            class="theme-pick"
+            role="radio"
+            :aria-checked="theme === option.id"
+            :class="{ on: theme === option.id }"
+            @click="pickTheme(option.id)"
+          >
+            {{ option.label }}
+          </button>
+        </div>
+        <p class="muted note">跟随系统时随手机深浅色一起变。</p>
+      </div>
     </section>
 
     <section class="group">
@@ -160,6 +195,39 @@ h3 {
 
 .note {
   font-size: 12px;
+}
+
+.theme-picks {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--bg-hover);
+}
+
+.theme-pick {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.theme-pick.on {
+  background: var(--bg-panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+@media (hover: hover) {
+  .theme-pick:not(.on):hover {
+    color: var(--text);
+  }
 }
 
 .check {

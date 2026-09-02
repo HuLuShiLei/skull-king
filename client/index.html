@@ -5,7 +5,33 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#ebedf0" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="referrer" content="no-referrer" />
+    <!--
+      主题必须赶在 CSS 之前落到 html 上，否则系统深色时会先闪一帧浅色。
+      完整逻辑在 theme.ts，这里只负责第一帧。
+    -->
+    <script>
+      (function () {
+        var pref = 'system'
+        try {
+          pref = localStorage.getItem('sk.theme') || 'system'
+        } catch (e) {}
+        var dark =
+          pref === 'dark' ||
+          (pref !== 'light' &&
+            window.matchMedia &&
+            matchMedia('(prefers-color-scheme: dark)').matches)
+        var theme = dark ? 'dark' : 'light'
+        var root = document.documentElement
+        root.setAttribute('data-theme', theme)
+        root.style.colorScheme = theme
+        root.style.background = dark ? '#1a1c1e' : '#f2f3f5'
+        var color = dark ? '#141516' : '#ebedf0'
+        var meta = document.querySelector('meta[name="theme-color"]')
+        if (meta) meta.setAttribute('content', color)
+      })()
+    </script>
     <!-- 标题会被运行时的伪装设置覆盖，这里给一个同样朴素的默认值 -->
     <title>协作平台</title>
     <!--

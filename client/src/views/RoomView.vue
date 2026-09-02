@@ -236,7 +236,7 @@ h1 {
     position: absolute;
     inset: 0;
     border: none;
-    background: rgba(31, 35, 41, 0.28);
+    background: var(--overlay);
     opacity: 0;
     pointer-events: none;
   }

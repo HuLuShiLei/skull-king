@@ -195,12 +195,12 @@ header {
 }
 
 .badge.ok {
-  background: #e6f4ea;
+  background: var(--success-soft);
   color: var(--success);
 }
 
 .badge.off {
-  background: #fdeceb;
+  background: var(--danger-soft);
   color: var(--danger);
 }
 

@@ -308,12 +308,12 @@ async function send() {
 }
 
 .note.ok {
-  background: #e6f4ea;
+  background: var(--success-soft);
   color: var(--success);
 }
 
 .note.bad {
-  background: #fdeceb;
+  background: var(--danger-soft);
   color: var(--danger);
 }
 

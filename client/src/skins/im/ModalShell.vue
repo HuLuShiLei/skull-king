@@ -28,7 +28,7 @@ const emit = defineEmits<{ close: [] }>()
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(31, 35, 41, 0.28);
+  background: var(--overlay);
   z-index: 50;
 }
 

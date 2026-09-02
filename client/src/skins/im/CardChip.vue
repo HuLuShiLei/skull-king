@@ -99,6 +99,16 @@ const label = computed(() => describeCard(props.card, props.tigressMode))
   font-size: 10px;
 }
 
+/* 花色底是给浅色底设计的浅色块，深色下会一块荧光。混到面板色上只留一点色相。 */
+:global(html[data-theme='dark']) .tag {
+  color: color-mix(in srgb, var(--chip-color) 55%, white);
+  background: color-mix(in srgb, var(--chip-color) 22%, var(--bg-panel));
+}
+
+:global(html[data-theme='dark']) .as {
+  color: color-mix(in srgb, var(--chip-color) 55%, white);
+}
+
 .chip.interactive {
   transition: border-color 0.12s ease;
 }

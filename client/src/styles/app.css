@@ -4,6 +4,7 @@
  */
 
 :root {
+  color-scheme: light;
   --bg-app: #f2f3f5;
   --bg-panel: #ffffff;
   --bg-chat: #f5f6f8;
@@ -30,6 +31,13 @@
   --bubble-self: #d6e4ff;
   --bubble-other: #ffffff;
 
+  --success-soft: #e6f4ea;
+  --danger-soft: #fdeceb;
+  --overlay: rgba(31, 35, 41, 0.28);
+  --notice-bg: rgba(31, 35, 41, 0.05);
+  --scrollbar: #c9cdd4;
+  --scrollbar-hover: #a9aeb8;
+
   --radius: 6px;
   --radius-lg: 10px;
 
@@ -38,6 +46,46 @@
 
   --sidebar-width: 264px;
   --roster-width: 240px;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-app: #1a1c1e;
+  --bg-panel: #232528;
+  --bg-chat: #1c1e21;
+  --bg-sidebar: #141516;
+  --bg-hover: #2c2e32;
+  --bg-active: #1a335c;
+
+  --line: #2f3238;
+  --line-strong: #3d424a;
+
+  --text: #e8eaed;
+  --text-secondary: #9aa0a6;
+  --text-muted: #6e747c;
+  --text-inverse: #ffffff;
+
+  --accent: #4c8dff;
+  --accent-hover: #6ba0ff;
+  --accent-soft: #1a335c;
+
+  --danger: #e6665e;
+  --success: #4caf67;
+  --warning: #d4a017;
+
+  --bubble-self: #1a3a7a;
+  --bubble-other: #2a2d31;
+
+  --success-soft: #1b3d28;
+  --danger-soft: #3d1f1d;
+  --overlay: rgba(0, 0, 0, 0.55);
+  --notice-bg: rgba(255, 255, 255, 0.06);
+  --scrollbar: #4a4f57;
+  --scrollbar-hover: #636972;
+
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 4px 18px rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -51,6 +99,8 @@ body,
   /* 输入法弹出时这个值会缩到键盘上方，见 viewport.ts */
   height: var(--app-height, 100dvh);
   margin: 0;
+  background: var(--bg-app);
+  accent-color: var(--accent);
 }
 
 /* IM 客户端不该有整页滚动条，该滚的是消息区自己。
@@ -91,6 +141,11 @@ select {
   color: inherit;
 }
 
+::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
 /* 滚动条也要低调，默认的粗滚动条在深色背景上很扎眼 */
 ::-webkit-scrollbar {
   width: 8px;
@@ -98,12 +153,12 @@ select {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c9cdd4;
+  background: var(--scrollbar);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a9aeb8;
+  background: var(--scrollbar-hover);
 }
 
 ::-webkit-scrollbar-track {
@@ -183,11 +238,20 @@ select {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
   background: var(--bg-panel);
+  color: var(--text);
   outline: none;
 }
 
 .input:focus {
   border-color: var(--accent);
+}
+
+input:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--text);
+  box-shadow: 0 0 0 1000px var(--bg-panel) inset;
+  transition: background-color 9999s ease-out;
 }
 
 .avatar {
