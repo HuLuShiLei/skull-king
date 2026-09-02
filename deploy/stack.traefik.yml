@@ -1,10 +1,6 @@
-# Portainer + Traefik 部署用。镜像由 GitHub Actions 推到 GHCR，这里只管拉。
-#
-# 采用同源模式：前端和后端挂同一个域名，Traefik 按路径分流——
-# /api 和 /hub 给后端，其余给前端。浏览器眼里全是同源请求，
-# 不用配 CORS，WebSocket 也不涉及跨站，最省事也最不容易出问题。
-#
-# 在 Portainer 的 Stack 环境变量里至少要填 SKULLKING_DOMAIN 和 IMAGE_OWNER。
+# 镜像由 GitHub Actions 推送到 GHCR。
+# 同源：同一域名下 /api、/hub 到后端，其余到前端。
+# 至少设置 SKULLKING_DOMAIN 与 IMAGE_OWNER。
 
 services:
   server:
@@ -22,7 +18,7 @@ services:
       - traefik.enable=true
       - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
 
-      # 优先级要高于前端那条，否则 Host 规则会把 /api 一起吃掉。
+      # 须高于前端路由，否则 Host 规则会匹配全部路径。
       - traefik.http.routers.skullking-api.rule=Host(`${SKULLKING_DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/hub`))
       - traefik.http.routers.skullking-api.priority=100
       - traefik.http.routers.skullking-api.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
@@ -31,15 +27,14 @@ services:
       - traefik.http.routers.skullking-api.service=skullking-api
 
       - traefik.http.services.skullking-api.loadbalancer.server.port=8080
-      # 让后端能从 X-Forwarded-* 里读到访客真实 IP 和外部 scheme。
+      # 使后端从 X-Forwarded-* 读取外部 scheme 与客户端 IP。
       - traefik.http.services.skullking-api.loadbalancer.passhostheader=true
 
   web:
     image: ghcr.io/${IMAGE_OWNER}/skullking-client:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
-      # 同源模式留空。若改成前后端分域名，这里填后端外部地址，
-      # 同时给 server 加上 Cors__AllowedOrigins=https://前端域名。
+      # 同源留空。分域名时填后端对外地址，并为 server 设置 Cors__AllowedOrigins。
       SKULLKING_API_BASE: ${SKULLKING_API_BASE:-}
       TZ: ${TZ:-Asia/Shanghai}
     networks:

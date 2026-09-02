@@ -1,8 +1,7 @@
 name: 构建并推送镜像
 
-# 推 main 就出一版 latest；打 v* 标签则同时出带版本号的镜像。
-# 镜像推到 GHCR（ghcr.io/<你的用户名>/skullking-server 和 -client），
-# GHCR 对公开镜像免费，Portainer 拉取时也不需要配凭据。
+# 默认分支推送生成 latest；v* 标签同时生成版本镜像。
+# 目标仓库：ghcr.io/<owner>/skullking-server 与 skullking-client。
 on:
   push:
     branches: [main, master]
@@ -41,7 +40,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # GHCR 只接受全小写的镜像名，而 GitHub 用户名可能带大写。
+      # GHCR 要求镜像名全小写。
       - name: 规范化镜像归属
         id: owner
         run: echo "value=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
@@ -64,6 +63,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # 把构建缓存也存在 GHCR 里，下次只重建改动的层。
           cache-from: type=gha
           cache-to: type=gha,mode=max

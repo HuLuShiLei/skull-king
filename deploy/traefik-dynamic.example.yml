@@ -1,31 +1,22 @@
-# Traefik 跑在另一台机器上时，把这个文件放进它的 file provider 目录
-# （常见是 /etc/traefik/conf 或 /etc/traefik/dynamic），文件名随意。
-# Traefik 开了 watch: true 的话会热加载，不用重启。
-#
-# 前提是静态配置里启用了 file provider：
+# 将本文件放到 Traefik 的 file provider 目录（如 /etc/traefik/conf 或 /etc/traefik/dynamic）。
+# 静态配置需包含：
 #   providers:
 #     file:
 #       directory: /etc/traefik/conf
 #       watch: true
 #
-# 需要按实际情况替换的地方：
-#   sk.example.com   → 你的域名
-#   192.168.66.20    → 跑容器那台机器的内网 IP
-#   8080 / 8081      → stack 里 SERVER_PORT / WEB_PORT 实际发布的端口
-#   websecure        → 你 Traefik 里 HTTPS entryPoint 的名字
+# 替换：域名、上游内网 IP、SERVER_PORT / WEB_PORT、HTTPS entryPoint 名称。
 
 http:
   routers:
-    # 这条的 priority 必须比 skullking-web 高，否则只有 Host 条件的那条
-    # 会把 /api 和 /hub 一起吃掉，前端就把 API 请求当路由渲染成首页了。
+    # priority 必须高于 skullking-web，否则仅 Host 的规则会匹配 /api 与 /hub。
     skullking-api:
       rule: "Host(`sk.example.com`) && (PathPrefix(`/api`) || PathPrefix(`/hub`))"
       priority: 10
       entryPoints:
         - websecure
       service: skullking-api
-      # 已经配了泛域名默认证书（tls.stores.default）的话，空对象就够了。
-      # 没有的话改成 tls: { certResolver: 你的解析器名 }。
+      # 已配置 tls.stores.default 时使用空对象；否则改为 certResolver。
       tls: {}
 
     skullking-web:
@@ -39,7 +30,6 @@ http:
   services:
     skullking-api:
       loadBalancer:
-        # 让后端能从 X-Forwarded-* 里读到真实 Host 和访客 IP。
         passHostHeader: true
         servers:
           - url: "http://192.168.66.20:8080"
@@ -49,12 +39,3 @@ http:
         passHostHeader: true
         servers:
           - url: "http://192.168.66.20:8081"
-
-# 两点提醒：
-#
-# 1. 别给这两个 router 挂 ipAllowList 之类的内网白名单中间件——
-#    这游戏就是给同事在公司网络里开的，挂了就只有你自己能进。
-#
-# 2. SignalR 的 WebSocket 不需要额外配置，Traefik 会自动转发 Upgrade 头。
-#    但如果你挂了会改写请求头的中间件，注意别把 Connection 和 Upgrade 洗掉，
-#    否则表现是连接反复重连、出牌要等很久才同步。

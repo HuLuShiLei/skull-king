@@ -1,17 +1,11 @@
-# 和 stack.traefik.yml 完全等价，区别只有一个：镜像在服务器上现场构建，
-# 不从镜像仓库拉。适合还没搭 CI/CD、又不想折腾 GHCR 凭据的情况。
-#
-# 用法：Portainer → Stacks → Add stack → Repository，
-# 仓库填 GitHub 地址，Compose path 填 deploy/stack.traefik.build.yml。
-# 每次点 "Pull and redeploy" 就会重新拉代码并重新构建。
-#
-# 代价：构建要在服务器上跑，第一次大约几分钟，也会占几百 MB 的构建缓存。
+# 与 stack.traefik.yml 等价，镜像在本机构建，不拉取 GHCR。
+# Portainer：Stacks → Add stack → Repository，Compose path 为本文件。
+# build context 相对本文件所在目录，故为上级仓库根。
 
 services:
   server:
     build:
-      # context 是相对「compose 文件所在目录」解析的，这个文件在 deploy/ 下，
-      # 所以要往上一级才是仓库根——Dockerfile 里 COPY 的都是 src/ 这种根路径。
+      # context 相对 compose 文件目录；本文件在 deploy/，仓库根为 ..
       context: ..
       dockerfile: deploy/Dockerfile.server
     image: skullking-server:selfbuilt

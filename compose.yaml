@@ -1,8 +1,9 @@
-# 本地自测用：两个容器直接映射端口，不经反代。
-#   docker compose up -d --build   然后打开 http://localhost:8081
+# 本地验证：构建镜像并映射端口，不经过反向代理。
+#   docker compose up -d --build
+# 前端 http://localhost:8081 ，后端 http://localhost:8080
 #
-# 这里刻意用「前后端不同端口」的跨域模式，顺便把 CORS 和运行时注入这两条链路
-# 一起验证掉。生产环境推荐同源模式（见 deploy/stack.traefik.yml），不需要 CORS。
+# 此处使用跨端口访问以覆盖 CORS 与运行时注入。生产环境应使用同源反代
+# （deploy/stack.traefik.yml），无需 CORS。
 
 services:
   server:

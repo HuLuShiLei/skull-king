@@ -1,14 +1,11 @@
-# 和 stack.remote-traefik.yml 等价，区别只有镜像在本机现场构建、不从仓库拉。
-# 适合 GHCR 还没跑通（比如 Actions 被账单锁住）的时候先把服务跑起来。
-#
-# 用法：Portainer → Stacks → Add stack → Repository，
-# Compose path 填 deploy/stack.remote-traefik.build.yml。
+# 与 stack.remote-traefik.yml 等价，镜像在本机构建。
+# Portainer Repository 的 Compose path 为本文件。
+# build context 相对本文件所在目录，故为上级仓库根。
 
 services:
   server:
     build:
-      # context 是相对「compose 文件所在目录」解析的，这个文件在 deploy/ 下，
-      # 所以要往上一级才是仓库根——Dockerfile 里 COPY 的都是 src/ 这种根路径。
+      # context 相对 compose 文件目录；本文件在 deploy/，仓库根为 ..
       context: ..
       dockerfile: deploy/Dockerfile.server
     image: skullking-server:selfbuilt

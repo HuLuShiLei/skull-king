@@ -1,108 +1,145 @@
 # 骷髅王在线版
 
-服务端权威的 Skull King（骷髅王）在线对战。后端 ASP.NET Core + SignalR + SQLite，前端 Vue 3，界面伪装成一个企业 IM 聊天窗口——出牌是发消息，叫牌是填承接量，记分板是群成员列表的未读数。
+服务端权威的 [Skull King](https://www.grandpabeck.com/skull-king) 在线对战。后端为 ASP.NET Core + SignalR + SQLite，前端为 Vue 3。界面伪装成企业即时通讯客户端：出牌对应发消息，叫牌对应填写承接量，记分显示在群成员列表中。
 
-## 跑起来
+## 功能
 
-需要 .NET 10 SDK 和 Node 22。
+- 大厅与房间：公开列表、群号、带口令的邀请链接、旁观
+- 对局中途改限时、掉线宽限、超时托管、进程重启后重放恢复
+- 完整消息流与历史回放
+- 老板键与失焦自动伪装；浅色 / 深色 / 跟随系统主题
+
+## 本地开发
+
+需要 [.NET 10 SDK](https://dotnet.microsoft.com/download) 与 Node 22。
 
 ```bash
-# 后端（http://localhost:5080）
+# 后端 http://localhost:5080
 dotnet run --project src/SkullKing.Server
 
-# 前端（另开一个终端，http://localhost:5173，已代理 /api 和 /hub 到 5080）
+# 前端 http://localhost:5173（/api 与 /hub 已代理到 5080）
 cd client && npm install && npm run dev
 ```
 
-前端 `npm run build` 的产物默认落在 `src/SkullKing.Server/wwwroot`，所以本机跑一个进程就能通全链路：
+将前端构建进后端进程（单进程即可访问全链路）：
 
 ```bash
-cd client && npm run build
+npm --prefix client run build
 dotnet run --project src/SkullKing.Server -c Release
 ```
 
-数据库首次启动自动迁移，不需要手工建表。默认落在工作目录的 `skullking.db`，改 `ConnectionStrings__Default` 可以换位置。
+SQLite 在首次启动时自动迁移，默认文件为工作目录下的 `skullking.db`，可通过 `ConnectionStrings__Default` 更改路径。
 
 ## 部署
 
-前后端各一个容器：后端只提供 API 和 Hub，前端是 nginx 托管的静态站。后端地址不写死在前端构建里，而是容器启动时注入，所以同一个前端镜像可以连不同环境的后端。
+向 `main` 推送后，[GitHub Actions](.github/workflows/docker.yml) 会构建并推送镜像：
+
+| 镜像 | 说明 |
+| --- | --- |
+| `ghcr.io/<owner>/skullking-server` | API 与 SignalR Hub |
+| `ghcr.io/<owner>/skullking-client` | nginx 静态站点 |
+
+标签：`latest`（默认分支）、git tag（如 `v1.0.0`）、短 SHA。`<owner>` 为仓库所属 GitHub 用户或组织名（小写）。
+
+首次拉取前需在 GitHub Packages 将两个包设为 Public，或在宿主机配置带 `read:packages` 的凭据。
+
+### 本机或单机 Compose
+
+仓库根目录的 [`compose.yaml`](compose.yaml) 在本地构建并映射端口，用于验证，不经过反向代理：
 
 ```bash
-docker compose up -d --build   # 本地自测，打开 http://localhost:8081
+docker compose up -d --build
+# 前端 http://localhost:8081 ，后端 http://localhost:8080
 ```
 
-Portainer + Traefik 的完整步骤、环境变量清单、以及「没有 CI/CD 也能持续部署」的两条路线，都在 [deploy/README.md](deploy/README.md)。仓库里已经带了 GitHub Actions 工作流，推代码就会自动构建镜像推到 GHCR。
+生产环境建议同源反代（同一域名下 `/api`、`/hub` 转发到后端，其余给前端），使用已构建的 GHCR 镜像。Traefik 与本服务同机时：
 
-## 怎么玩
-
-1. 打开首页，填个显示名称就进去了，不用注册。
-2. 左栏「新建群聊」开房，会拿到一个 6 位群号。
-3. 把群号或邀请链接 `http://<host>/j/<群号>` 发给同事，对方打开直接入座。
-4. 非房主点「确认参加」，房主点「发起议程」开局。2 人起，最多 8 人（默认 6 人），多出来的自动进旁观席。
-5. 每轮先在底部选本周承接量（叫牌），全员选完一次性揭示；然后点底部的快捷回复条出牌，灰掉的是不能出的。手牌上方那条常驻显示自己报了几、已完成几、还差几。
-
-一局打完可以原地再开一轮，重新确认一次即可。历史记录在大厅点开能翻回当时的完整消息流。
-
-## 摸鱼相关
-
-- **老板键**：默认 `Esc`，一键切到一屏预置的工作对话，再按回来。设置里能改键。
-- **失焦自动伪装**：窗口失去焦点几秒后自动切伪装态，可关。
-- **标题伪装**：`document.title` 和 favicon 全程是办公工具的样子，可关。
-- **不弹窗、不响铃**：轮到你行动只用一个很淡的红点和底部文案提示，全程无音效。
-- **换皮**：皮肤收在 `client/src/skins/`，实现 `SkinDefinition` 里那几个组件就能整套替换，游戏逻辑一行都不用动。
-
-## 项目结构
-
-```
-src/
-  SkullKing.Domain/          规则引擎。纯函数，零外部依赖，Apply(Command) -> (State, Events)
-  SkullKing.Contracts/       DTO 与 Hub 消息契约
-  SkullKing.Application/     大厅、房间、对局编排、超时托管、回放
-  SkullKing.Infrastructure/  EF Core + SQLite
-  SkullKing.Server/          Minimal API + SignalR Hub + 托管前端产物
-client/                      Vue 3 + TS + Vite（IM 皮肤）
-deploy/                      两个 Dockerfile、nginx 配置、Portainer stack、部署说明
-tests/                       xUnit，132 个用例
+```bash
+cd deploy
+cp stack.env.example .env   # 填写域名与 IMAGE_OWNER
+docker compose -f stack.traefik.yml --env-file .env up -d
 ```
 
-改代码之前先看 [AGENTS.md](AGENTS.md)：命令、分层约束、以及几条踩过坑才长成现在这样的铁律。按文件生效的细则在 `.cursor/rules/`，加数据库字段、加房间设置项、改完怎么验证这三个流程收在 `.cursor/skills/`。
+Portainer、Traefik 跨主机、现场构建等说明见 [deploy/README.md](deploy/README.md)。
 
-### 几个设计上的取舍
+### 环境变量
 
-**服务端权威**。客户端只发意图，连「我手上哪几张能出」都以服务端下发的 `playableCardIds` 为准。手牌只单播给本人，叫牌在本轮全员叫完之前也只发给本人，所以改前端代码看不到别人的牌。
+| 变量 | 作用对象 | 说明 |
+| --- | --- | --- |
+| `IMAGE_OWNER` | Compose | GHCR 命名空间，须为小写 GitHub 用户名或组织名 |
+| `IMAGE_TAG` | Compose | 镜像标签，默认 `latest` |
+| `SKULLKING_DOMAIN` | Traefik 同机 | 对外域名 |
+| `SKULLKING_API_BASE` | 前端容器 | 后端对外地址。同源反代时留空 |
+| `Cors__AllowedOrigins` | 后端 | 跨域时的前端 Origin，多个用逗号分隔。同源部署不需要 |
+| `ConnectionStrings__Default` | 后端 | SQLite 连接串，容器内默认 `Data Source=/data/skullking.db` |
+| `TZ` | 两个容器 | 时区，默认 `Asia/Shanghai` |
+| `TRAEFIK_NETWORK` | Traefik 同机 | Traefik 所在 Docker 网络，默认 `traefik` |
+| `TRAEFIK_ENTRYPOINT` | Traefik 同机 | HTTPS entrypoint 名称 |
+| `TRAEFIK_CERTRESOLVER` | Traefik 同机 | 证书解析器名称 |
+| `BIND_ADDR` | Traefik 跨主机 | 发布端口绑定的地址，应为本机内网 IP，勿用 `0.0.0.0` |
+| `SERVER_PORT` / `WEB_PORT` | Traefik 跨主机 | 宿主机上后端 / 前端端口，默认 `8080` / `8081` |
 
-**存命令不存状态**。规则引擎是确定性的，同一个随机种子加同一串命令必然重现同一局。所以库里只存种子和命令日志，进程重启时重放恢复，历史回放也是同一套重放逻辑跑出来的——回放看到的和当时看到的必然一致。
+完整清单与示例见 [`deploy/stack.env.example`](deploy/stack.env.example)。
 
-**事件驱动表现，快照驱动状态**。Hub 广播增量事件让界面能一张张地演出牌动画，随后单播的房间快照才是权威状态。两者走同一条队列，否则快照会在动画播完前抢先落地，桌上的牌会瞬间清空。
+## 使用
 
-**掉线不塌陷座位**。对局中掉线只标记离线并保留座位，重连后凭 token 认回原座位并补发快照。代打不会因为掉线提前：设了限时就等这一步的限时走完，不限时的房间掉线满 2 分钟才由系统兜底（叫 0 / 出第一张合法牌）。人回来时如果牌局正等他，思考时间重新给满，不会一进门就发现牌被打了。服务重启后额外留 90 秒重连窗口，期间不启动托管。
+1. 打开站点，填写显示名称（无需注册）。
+2. 左侧「新建群聊」创建房间，获得 6 位群号。
+3. 将群号或邀请链接 `https://<host>/j/<群号>` 发给其他成员。
+4. 非房主点击「确认参加」，房主点击「发起议程」。最少 2 人、最多 8 人（默认上限 6），超出人数进入旁观。
+5. 每轮先选择本周承接量，全员提交后揭示；再从底部快捷条出牌。手牌上方显示本人的承接量、已完成数与差额。
 
-## 规则实现范围
+对局结束后可在同一房间再开一轮。大厅中可打开历史回放。
 
-核心 70 张牌：4 个花色各 1-14（黑色 JollyRoger 是王牌）、5 张逃跑、5 张海盗、1 张 Tigress（出牌时选当海盗还是逃跑）、2 张美人鱼、1 张骷髅王。
+老板键默认为 `Esc`，可在设置中修改；亦可启用失焦后自动切换伪装界面。
 
-第 N 轮发 N 张，最大轮数 `min(设置上限, 70 / 人数)`。
+## 结构
 
-吃墩优先级：美人鱼吃骷髅王 > 骷髅王吃海盗 > 海盗吃美人鱼和数字牌 > 黑色王牌 > 跟牌花色最大 > 全逃跑时最先出的收墩。
+```
+src/SkullKing.Domain/          规则引擎（纯函数，无外部依赖）
+src/SkullKing.Contracts/      DTO 与 Hub 契约
+src/SkullKing.Application/    大厅、房间、对局编排、超时托管、回放
+src/SkullKing.Infrastructure/  EF Core + SQLite
+src/SkullKing.Server/        Minimal API + SignalR
+client/                       Vue 3 + TypeScript + Vite
+deploy/                       Dockerfile、Compose、nginx、部署说明
+tests/                        xUnit
+```
 
-计分：叫 0 成功得 `轮次 × 10`，失败扣同样多；叫 N 成功得 `N × 20` 加奖励分，失败按差额每墩扣 10 且没有奖励分。奖励分只在叫牌命中时计入——用 14 吃墩 +10（黑 14 是 +20），骷髅王吃掉每个海盗 +30，海盗吃掉骷髅王 +30，美人鱼吃掉骷髅王 +50。
+### 设计要点
 
-`Loot`、`Kraken`、`WhiteWhale` 这几张扩展牌留了定义和房间开关，但没发到牌组里。
+**服务端权威。** 客户端只提交意图；可出牌列表以服务端下发的 `playableCardIds` 为准。手牌仅单播给本人；叫牌数字在全员叫完前仅本人可见。
+
+**存命令、不存运行时状态。** 规则引擎由随机种子与命令日志决定。进程重启按日志重放；历史回放使用同一套重放。
+
+**事件与快照分离。** Hub 广播增量事件用于表现，随后的房间快照为权威状态。二者进入同一客户端队列，避免快照抢在出牌动画之前落地。
+
+**掉线保留座位。** 对局中掉线只标记离线。重连凭 token 恢复座位并补发快照。托管在本步限时结束（未设限时则掉线满 2 分钟）后才执行；重连时若仍轮到该玩家，会重新给予完整思考时间。服务重启后另有 90 秒抑制托管窗口。
+
+## 规则实现
+
+70 张核心牌：四花色各 1–14（黑色 JollyRoger 为王牌）、逃跑 5、海盗 5、Tigress 1（出牌时选择作为海盗或逃跑）、美人鱼 2、骷髅王 1。
+
+第 N 轮每人 N 张牌。最大轮数为 `min(房间设置, 70 / 人数)`。
+
+吃墩优先级：美人鱼克骷髅王 > 骷髅王克海盗 > 海盗克美人鱼与数字牌 > 黑色王牌 > 跟牌花色最大点数 > 全部逃跑时最先出牌者得墩。
+
+计分：叫 0 成功得 `轮次 × 10`，失败扣相同分数；叫 N 成功得 `N × 20` 加奖励分，失败按墩差每墩扣 10 且无奖励。奖励分仅在叫牌命中时计入：用 14 得墩 +10（黑 14 为 +20），骷髅王每吃一张海盗 +30，海盗吃骷髅王 +30，美人鱼吃骷髅王 +50。
+
+`Loot`、`Kraken`、`WhiteWhale` 已预留牌面定义与房间开关，当前未加入牌组。
 
 ## 测试
 
 ```bash
 dotnet test
+npm --prefix client run build
 ```
 
-规则引擎的测试覆盖三角克制、Tigress 双形态、全逃跑墩、首家出特殊牌后由谁定花色、叫 0 成败、各类奖励分叠加；编排层的测试覆盖手牌可见性、叫牌保密、超时托管、掉线重连、重启重放、回放一致性。
+规则层覆盖克制关系、Tigress 双形态、全逃跑墩、跟牌花色、叫 0 与奖励分；编排层覆盖手牌可见性、叫牌保密、超时托管、掉线重连、重启重放与回放一致性。
 
-单测用的是内存假货，所以还有一个端到端脚本，让三个匿名玩家真的连上 Hub 打完一局再把回放拉回来对一遍，覆盖鉴权、Hub 签名、序列化这些只有真跑起来才会暴露的问题：
+端到端脚本会启动三名匿名玩家经 Hub 打完一局并核对回放（服务端需先运行）：
 
 ```bash
-# 服务端先跑着
-cd client && node scripts/smoke.mjs
-
-# 打到一半就断开，用来验证停服重启后能不能恢复这局
-node scripts/smoke.mjs --half
+node client/scripts/smoke.mjs
+node client/scripts/smoke.mjs --half   # 中途断开，用于验证重启恢复
 ```

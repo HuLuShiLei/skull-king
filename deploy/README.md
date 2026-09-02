@@ -1,29 +1,27 @@
-# 部署说明
+# 部署
 
-前后端各是一个容器：
+前后端各一个容器：
 
-| 容器 | 内容 | 内部端口 | 需要持久化 |
+| 服务 | 内容 | 容器端口 | 持久化 |
 | --- | --- | --- | --- |
-| `skullking-server` | ASP.NET Core，只提供 API 和 SignalR Hub | 8080 | 是，`/data` 放 SQLite |
-| `skullking-client` | nginx，托管前端静态产物 | 80 | 否 |
+| `skullking-server` | ASP.NET Core：HTTP API 与 SignalR Hub | 8080 | `/data`（SQLite） |
+| `skullking-client` | nginx 静态站点 | 80 | 无 |
 
-## 选哪个 stack 文件
+## Compose 文件
 
-先看 Traefik 和这两个容器是不是在**同一台 Docker 主机**上，这决定了 Traefik 能不能读到容器标签：
+| 场景 | 文件 |
+| --- | --- |
+| Traefik 与本服务同机，拉取 GHCR | [`stack.traefik.yml`](stack.traefik.yml) |
+| Traefik 与本服务同机，本机构建 | [`stack.traefik.build.yml`](stack.traefik.build.yml) |
+| Traefik 在其他主机，拉取 GHCR | [`stack.remote-traefik.yml`](stack.remote-traefik.yml) |
+| Traefik 在其他主机，本机构建 | [`stack.remote-traefik.build.yml`](stack.remote-traefik.build.yml) |
+| 本机验证、不使用反代 | 仓库根目录 [`compose.yaml`](../compose.yaml) |
 
-| 你的情况 | 用这个 | 说明 |
-| --- | --- | --- |
-| Traefik 同机，镜像从 GHCR 拉 | `stack.traefik.yml` | 靠 `traefik.*` 标签自动发现 |
-| Traefik 同机，本机现场构建 | `stack.traefik.build.yml` | 同上，但不依赖镜像仓库 |
-| Traefik 在别的机器，从 GHCR 拉 | `stack.remote-traefik.yml` | 发布宿主机端口，Traefik 侧写 file provider |
-| Traefik 在别的机器，本机构建 | `stack.remote-traefik.build.yml` | 同上，不依赖镜像仓库 |
-| 只想本地试一下 | 仓库根的 `compose.yaml` | 直接映射端口，不经反代 |
+除「镜像来源」与「标签发现 / 发布端口」外，上述 stack 的运行时配置一致，可按环境替换文件。
 
-四个 stack 文件除了「拉镜像 / 现场构建」和「标签 / 端口」这两处，其余完全一致，随时可以互换。
+## 路由
 
-## 一、先理解路由模式
-
-推荐**同源模式**：前端和后端挂同一个域名，Traefik 按路径分流。
+推荐同源：同一域名由反代按路径分流。
 
 ```
 https://sk.example.com/api/*   ─┐
@@ -31,176 +29,83 @@ https://sk.example.com/hub/*   ─┴─→ skullking-server:8080
 https://sk.example.com/*       ───→ skullking-client:80
 ```
 
-好处是浏览器眼里全是同源请求：不用配 CORS，WebSocket 不涉及跨站，也不会被浏览器的第三方策略挡住。`deploy/stack.traefik.yml` 里的 `priority` 就是为这个服务的——后端那条规则优先级 100，前端那条 1，否则前端的 `Host()` 规则会把 `/api` 一起吃掉。
+同源时浏览器对 API 与 WebSocket 均为 same-origin，无需 CORS。`stack.traefik.yml` 中后端路由 `priority` 为 100、前端为 1，避免仅含 `Host()` 的规则吞掉 `/api` 与 `/hub`。
 
-如果你确实想分成两个域名（比如 `sk.example.com` + `sk-api.example.com`），需要多做两件事：
+若前后端使用不同域名（例如 `sk.example.com` 与 `sk-api.example.com`）：
 
-1. 前端容器设 `SKULLKING_API_BASE=https://sk-api.example.com`
-2. 后端容器设 `Cors__AllowedOrigins=https://sk.example.com`
+1. 前端容器设置 `SKULLKING_API_BASE=https://sk-api.example.com`
+2. 后端容器设置 `Cors__AllowedOrigins=https://sk.example.com`
 
-后端地址是**容器启动时**注入 `index.html` 的，不是构建时写死的，所以同一个前端镜像可以连不同环境的后端。
+`SKULLKING_API_BASE` 在容器启动时写入 `index.html`，不在镜像构建时固化，因此同一前端镜像可用于多个后端地址。
 
-## 二、镜像从哪来
+## 镜像
 
-你现在没有 CI/CD、镜像也没推仓库，但代码已经在 GitHub 上，所以有两条路，选一条即可。
-
-### 路线 A：GitHub Actions 自动构建推 GHCR（推荐）
-
-仓库里已经放好了 `.github/workflows/docker.yml`，推代码就会自动构建两个镜像推到 GHCR。不需要你申请任何密钥——`GITHUB_TOKEN` 是 Actions 自带的。
-
-产出的镜像是：
+推送到默认分支或打 `v*` 标签时，[`.github/workflows/docker.yml`](../.github/workflows/docker.yml) 构建并推送：
 
 ```
-ghcr.io/hulushilei/skullking-server:latest
-ghcr.io/hulushilei/skullking-client:latest
+ghcr.io/<owner>/skullking-server:<tag>
+ghcr.io/<owner>/skullking-client:<tag>
 ```
 
-1. 把这次的改动推上去：
+`<owner>` 为仓库所有者的小写形式。`latest` 对应默认分支；git tag 会额外生成同名镜像标签。
+
+GitHub Packages 默认私有。公开仓库仍需在包设置中改为 Public，或在部署主机配置 GHCR 凭据（用户名为 GitHub 账号，密码为具有 `read:packages` 的 PAT）。
+
+升级：拉取新镜像后滚动更新。Portainer 中为 Update stack 并勾选重新拉取镜像。固定版本时将 `IMAGE_TAG` 设为对应 git tag。
+
+无法使用 GHCR 时，改用 `*.build.yml` 在宿主机构建，或：
 
 ```bash
-git add -A
-git commit -m "拆分前后端容器，补上 Traefik 部署与镜像构建流水线"
-git push
-```
-
-2. 打开 [Actions 页](https://github.com/HuLuShiLei/skull-king/actions) 确认「构建并推送镜像」跑绿了。首次约 3~5 分钟。
-
-   如果 job 只跑了两三秒就红了、点进去一个步骤都没有，多半不是工作流的问题。
-   看 annotation 里的原话，常见的是 `your account is locked due to a billing issue`——
-   公开仓库的 Actions 虽然免费，但账户被账单锁定会全局阻断 runner 分配，
-   去 <https://github.com/settings/billing> 处理完再 Re-run 即可。
-   在这期间可以先走下面的路线 B 部署，不受影响。
-
-3. 把镜像设为公开，这样 Portainer 拉取时不用配凭据：
-   GitHub 个人主页 → Packages → 分别打开 `skullking-server` 和 `skullking-client`
-   → Package settings → Change visibility → Public。
-
-   不想公开也行，那就在 Portainer 里加一个 Registry：
-   Registries → Add registry → Custom，地址 `ghcr.io`，用户名填 GitHub 用户名，
-   密码填一个勾了 `read:packages` 的 Personal Access Token（classic）。
-
-4. 之后每次改代码 `git push`，Actions 出新的 `latest`，在 Portainer 里点 stack 的
-   **Update the stack** 并勾上 **Re-pull image** 就完成升级。
-
-想要可回滚的版本号，就打标签：
-
-```bash
-git tag v1.0.0 && git push --tags
-```
-
-然后把 stack 环境变量 `IMAGE_TAG` 从 `latest` 改成 `v1.0.0`。
-
-### 路线 B：让 Portainer 直接从 GitHub 拉代码现场构建
-
-完全不碰镜像仓库。代价是构建在你的服务器上跑，首次几分钟，并占几百 MB 构建缓存。
-
-Portainer → Stacks → Add stack → 选 **Repository**：
-
-- Repository URL：`https://github.com/HuLuShiLei/skull-king`（私有仓库要额外填 PAT）
-- Repository reference：`refs/heads/main`
-- Compose path：`deploy/stack.traefik.build.yml`
-
-升级时点 **Pull and redeploy**，它会重新拉代码并重建。
-
-如果部署时报 `compose build operation failed: mkdir /.docker: permission denied`，
-这是 Portainer 自身的问题（[portainer#13143](https://github.com/portainer/portainer/issues/13143)），
-和 compose 文件无关：它内嵌的 compose 配置了用 Bake 构建但没装 buildx，
-回退时去写 `$HOME/.docker`，而容器里 `HOME` 是空的，于是变成往根目录写。
-
-绕过办法是别让 Portainer 来构建，直接在 Docker 主机上敲命令：
-
-```bash
-git clone https://github.com/HuLuShiLei/skull-king.git /opt/skull-king
+git clone https://github.com/<owner>/skull-king.git /opt/skull-king
 cd /opt/skull-king/deploy
-cp stack.env.example .env      # 按需改里面的 BIND_ADDR 等
+cp stack.env.example .env
 docker compose -f stack.remote-traefik.build.yml -p skullking up -d --build
 ```
 
-这样起出来的容器 Portainer 照样能看到和管理，只是「部署」这一步不经过它。
-升级就是 `git pull` 之后再跑一次同样的 `up -d --build`。
+Portainer 通过 Repository 构建时，若出现 `mkdir /.docker: permission denied`，属于 [Portainer 内嵌 Compose / Buildx 的问题](https://github.com/portainer/portainer/issues/13143)，可改为在 Docker 主机上执行上述命令。
 
-两条路线的 compose 文件除了「拉镜像 / 现场构建」这一处，其余完全一致，随时可以互换。
+## 环境变量
 
-## 三、在 Portainer 上部署（Traefik 同机）
+参照 [`stack.env.example`](stack.env.example)。按所选 stack 填写对应分组。
 
-前提：Traefik 已经跑起来，并且有一个外部 Docker 网络（一般叫 `traefik`）。
-Traefik 在别的机器上的话跳到第 3.5 节。
+| 变量 | 适用 | 说明 |
+| --- | --- | --- |
+| `IMAGE_OWNER` | 拉取 GHCR | GitHub 用户或组织名，必须小写 |
+| `IMAGE_TAG` | 拉取 GHCR | 默认 `latest` |
+| `SKULLKING_DOMAIN` | Traefik 同机 | 对外域名，DNS 指向 Traefik 所在主机 |
+| `SKULLKING_API_BASE` | 前端 | 同源留空；分域名时填后端对外 URL |
+| `Cors__AllowedOrigins` | 后端 | 仅分域名时需要 |
+| `TZ` | 两个容器 | 默认 `Asia/Shanghai` |
+| `TRAEFIK_NETWORK` | Traefik 同机 | 外部 Docker 网络名，默认 `traefik` |
+| `TRAEFIK_ENTRYPOINT` | Traefik 同机 | HTTPS entrypoint，须与 Traefik 静态配置一致 |
+| `TRAEFIK_CERTRESOLVER` | Traefik 同机 | 证书解析器名称，须与静态配置一致 |
+| `BIND_ADDR` | Traefik 跨主机 | 绑定本机内网 IP。`0.0.0.0` 会在全部网卡（含公网）上监听 |
+| `SERVER_PORT` | Traefik 跨主机 | 后端宿主机端口，默认 `8080` |
+| `WEB_PORT` | Traefik 跨主机 | 前端宿主机端口，默认 `8081` |
 
-1. DNS 把 `sk.example.com` 解析到服务器。
+`TRAEFIK_ENTRYPOINT` 或 `TRAEFIK_CERTRESOLVER` 与现网不一致时，常见现象为 HTTP 404 或证书无法签发。
 
-2. Portainer → Stacks → Add stack，名字填 `skullking`。
+## Traefik 同机
 
-3. 用路线 A 的话选 **Web editor**，把 `deploy/stack.traefik.yml` 的内容粘进去；
-   用路线 B 的话按上一节选 Repository。
+前提：Traefik 已运行，且存在可供本 stack 加入的外部网络（通常名为 `traefik`）。
 
-4. 在下方 **Environment variables** 里逐条添加（参照 `deploy/stack.env.example`）：
+1. 将域名解析到该主机。
+2. 使用 `stack.traefik.yml`（或 Portainer Web editor / Repository 指向该文件）。
+3. 配置环境变量：至少 `SKULLKING_DOMAIN`、`IMAGE_OWNER`，以及与现网一致的 Traefik 网络、entrypoint、证书解析器。
+4. 部署后访问 `https://<域名>`。
 
-| 变量 | 说明 |
-| --- | --- |
-| `SKULLKING_DOMAIN` | 对外域名，如 `sk.example.com` |
-| `IMAGE_OWNER` | GitHub 用户名（全小写），路线 B 不需要 |
-| `IMAGE_TAG` | 留空即 `latest` |
-| `TRAEFIK_NETWORK` | Traefik 所在的外部网络名，默认 `traefik` |
-| `TRAEFIK_ENTRYPOINT` | Traefik 的 HTTPS entrypoint 名，常见是 `websecure` 或 `https` |
-| `TRAEFIK_CERTRESOLVER` | Traefik 里配的证书解析器名，常见是 `letsencrypt` 或 `le` |
-| `TZ` | 时区，默认 `Asia/Shanghai` |
-| `SKULLKING_API_BASE` | 同源模式留空 |
+## Traefik 位于其他主机
 
-   `TRAEFIK_ENTRYPOINT` 和 `TRAEFIK_CERTRESOLVER` 一定要和你现有 Traefik 的静态配置对上，
-   名字对不上的表现是：容器起来了但访问 404，或者证书一直签不下来。
-
-5. Deploy the stack。
-
-6. 打开 `https://sk.example.com`，填个昵称就能进。左栏「新建群聊」开房，把 6 位群号或
-   `https://sk.example.com/j/群号` 发给同事。
-
-## 三点五、Traefik 在另一台机器上
-
-Traefik 的 docker provider 是通过**本机** Docker socket 发现容器的，跨主机读不到标签。
-所以这种情况下 `traefik.*` 标签、`TRAEFIK_NETWORK`、`SKULLKING_DOMAIN` 这些
-环境变量在容器这一侧统统没有意义——域名和证书都改由 Traefik 那台机器上的配置文件决定。
-
-改成两个容器把端口发布到宿主机，Traefik 用 file provider 指过来：
+Docker provider 只能通过本机 socket 发现容器，跨主机无法读取 `traefik.*` 标签。此时使用 `stack.remote-traefik.yml`，将端口发布到跑容器的主机，再在 Traefik 主机上用 file provider 指向这些上游。
 
 ```
-                    ┌─ Traefik 主机 192.168.66.10 ─┐
-   浏览器 ── HTTPS ──→  按路径分流                  │
-                    └──────┬──────────┬────────────┘
-                      HTTP │          │ HTTP（内网明文）
-                    ┌──────▼──────────▼────────────┐
-                    │ Portainer 主机 192.168.66.20 │
-                    │  :8080 后端     :8081 前端    │
-                    └──────────────────────────────┘
+浏览器 ── HTTPS ──→ Traefik 主机
+                         │ 内网 HTTP
+                    应用主机 :8080（API/Hub）、:8081（静态站）
 ```
 
-1. 用 `deploy/stack.remote-traefik.yml`（或 `.build.yml`）部署，环境变量只需要这几个：
-
-| 变量 | 说明 |
-| --- | --- |
-| `BIND_ADDR` | **填 Portainer 主机的内网 IP**，如 `192.168.66.20`。默认 `127.0.0.1` 会导致 Traefik 连不上 |
-| `SERVER_PORT` | 后端在宿主机上的端口，默认 `8080` |
-| `WEB_PORT` | 前端在宿主机上的端口，默认 `8081` |
-| `IMAGE_OWNER` | GitHub 用户名（全小写），用 `.build.yml` 时不需要 |
-| `IMAGE_TAG` | 留空即 `latest` |
-| `TZ` | 时区，默认 `Asia/Shanghai` |
-| `SKULLKING_API_BASE` | 同源模式留空 |
-
-   `BIND_ADDR` 一定要填内网 IP 而不是 `0.0.0.0`：后者会把这两个端口挂到所有网卡上，
-   包括公网网卡，等于绕过 Traefik 直接裸奔。填了内网 IP 之后，公网就访问不到了。
-   如果这台机器只有一张网卡且带公网，那就用防火墙补一刀：
-
-```bash
-ufw allow from 192.168.66.10 to any port 8080 proto tcp
-ufw allow from 192.168.66.10 to any port 8081 proto tcp
-ufw deny 8080
-ufw deny 8081
-```
-
-2. 把 `deploy/traefik-dynamic.example.yml` 拷到 Traefik 主机的 file provider 目录
-   （常见是 `/etc/traefik/conf/` 或 `/etc/traefik/dynamic/`），改掉里面的域名、IP、
-   端口和 entryPoint 名。Traefik 开了 `watch: true` 的话会热加载，不用重启。
-
-   如果 Traefik 的静态配置里还没启用 file provider，先加上：
+1. 部署 `stack.remote-traefik.yml`，设置 `BIND_ADDR` 为**应用主机内网 IP**，以及 `IMAGE_OWNER`、端口等。不要使用 `0.0.0.0`。若该主机网卡同时暴露公网，应在防火墙中仅允许 Traefik 主机访问这两个端口。
+2. 将 [`traefik-dynamic.example.yml`](traefik-dynamic.example.yml) 放到 Traefik 的 file provider 目录，替换域名、上游 IP、端口与 entryPoint。静态配置需启用 file provider，例如：
 
 ```yaml
 providers:
@@ -209,78 +114,57 @@ providers:
     watch: true
 ```
 
-   证书那一行要看你的情况：如果 `tls.stores.default` 已经配了泛域名默认证书，
-   router 里写 `tls: {}` 就行；否则要写成 `tls: { certResolver: 你的解析器名 }`。
-   解析器名是你自己在静态配置 `certificatesResolvers` 下起的，不一定叫 `letsencrypt`。
+   若已配置 `tls.stores.default` 默认证书，router 使用 `tls: {}` 即可；否则改为 `tls.certResolver` 并填写解析器名称。
 
-3. 别给这两个 router 挂内网白名单中间件（`ipAllowList` 之类）。这游戏的用途就是
-   让同事在公司网络里进来，挂了白名单等于只有你自己能玩。
+3. 不要为这两条 router 配置仅允许内网的 `ipAllowList`，否则外部受邀用户无法进入。
 
-4. 剩下的验证步骤和下一节一样。
+两台主机之间为明文 HTTP。若中间网络不可信，应使用隧道或改为 HTTPS 上游。
 
-两台机器之间走的是内网明文 HTTP。同一内网可以接受；如果中间跨了不可信网络，
-要么套 WireGuard，要么给后端也配上证书并把 Traefik 的 service 改成 `https://`。
-
-## 四、验证部署是否正常
+## 验证
 
 ```bash
-# 后端活着：返回 {"status":"ok"}
+# 后端存活，JSON {"status":"ok"}
 curl -fsS https://sk.example.com/api/healthz
 
-# 路径分流对了：应该返回 401（没带 token），而不是 200 的 HTML
+# 应为 401（未带 token），而不是 200 HTML
 curl -i https://sk.example.com/api/rooms
 
-# 前端路由回退对了：应该返回 200 和 HTML
+# SPA 回退：200 与 HTML
 curl -i https://sk.example.com/j/ABCDEF
 ```
 
-第一条如果返回 HTML，说明 `/api` 没有被分流到后端，去检查两个 router 的
-`priority` 和 `rule` 有没有被改动，以及 `TRAEFIK_ENTRYPOINT` 填得对不对。
+`/api/healthz` 若返回前端 HTML，说明路径未转到后端，检查 router 的 `priority`、`rule` 与 `TRAEFIK_ENTRYPOINT`。
 
-WebSocket 是否通只能在浏览器里看：F12 → Network → WS，应该有一条
-`/hub/game` 的连接处于 101/open 状态。如果它在反复重连，通常是 Traefik 那边
-把 WebSocket 升级头过滤了，检查有没有给这个 router 挂上会改写请求头的中间件。
+WebSocket：浏览器开发者工具 Network → WS，`/hub/game` 应为 101。反复重连通常是反代丢弃了 `Connection` / `Upgrade`。
 
-容器还没起、只想先确认 Traefik 这一侧配对了的话，有两个办法。一是直接请求，
-**502 说明路由命中了只是后端没起，404 才是路由没匹配上**：
+容器尚未启动时，可用 `--resolve` 探测 Traefik：**502 表示路由已命中、上游未就绪；404 表示规则未匹配**。
 
 ```bash
 curl -sk -o /dev/null -w '%{http_code}\n' \
-  --resolve 你的域名:443:127.0.0.1 https://你的域名/api/healthz
+  --resolve sk.example.com:443:127.0.0.1 https://sk.example.com/api/healthz
 ```
 
-二是问 Traefik 自己的 API（dashboard 开着的话），能看到 router 的
-`status`、`priority` 和它实际绑到了哪个 service：
+若启用了 Traefik API，可查询 router 状态：
 
 ```bash
 curl -s http://127.0.0.1:8080/api/http/routers | grep -A5 skullking
 ```
 
-顺带看一眼 `/api/overview`，里面的 `errors` 和 `warnings` 计数应该都是 0。
+## 数据与备份
 
-## 五、数据与备份
-
-对局历史在 `skullking-data` 卷里的 SQLite 文件。备份就是把文件拷出来：
+对局归档位于名为 `skullking-data` 的卷（实际名称带 stack 前缀，以 `docker volume ls` 为准）：
 
 ```bash
-docker run --rm -v skullking_skullking-data:/data -v $(pwd):/backup alpine \
+docker run --rm -v skullking_skullking-data:/data -v "$(pwd)":/backup alpine \
   sh -c "cp /data/skullking.db* /backup/"
 ```
 
-卷名前缀是 Portainer 里的 stack 名，实际名字用 `docker volume ls` 确认。
+若改为 bind mount，目录属主须为镜像中的非 root 用户（`$APP_UID`，一般为 1654），否则无法写入数据库。命名卷会继承镜像中的属主。
 
-如果你把 `/data` 换成宿主目录挂载（bind mount），记得先把目录属主改成容器里的运行用户
-（镜像用的是非 root 的 `$APP_UID`，通常是 1654），否则容器起来会报无法写数据库。
-用命名卷就没这个问题，Docker 会自动继承镜像里的属主。
+进行中的对局在内存中；每步命令同时落盘。容器重启后重放恢复，并在约 90 秒内不启动托管。
 
-进行中的对局状态在后端内存里，同时每一步命令都落了盘，所以容器重启会自动重放恢复，
-并额外留 90 秒重连窗口，期间不会触发超时托管。
+## 限制
 
-## 六、几个已知限制
-
-- **后端只能跑一个副本**。房间状态在内存里，SignalR 也没接 backplane。要横向扩容
-  得先引入 Redis backplane 并把房间状态外置，目前没做。
-- **后端容器别直接暴露到公网**。它信任 `X-Forwarded-*` 头且不校验来源，这是为了在
-  反代后面能拿到真实 IP。只让 Traefik 能访问它就好，stack 里也没有 `ports:` 映射。
-- **匿名 token 存在浏览器 localStorage 里**，换浏览器等于换人。这是刻意的：
-  不想为了一个摸鱼小游戏做账号体系。
+- 后端不可水平扩展：房间状态在进程内存中，SignalR 未配置 backplane。
+- 不要将后端直接暴露到公网。进程信任 `X-Forwarded-*` 且不校验来源，以便反代传递真实 IP。同机 Traefik 的 stack 不发布 `ports`。
+- 身份 token 保存在浏览器 `localStorage`，更换浏览器即新身份。当前无账号体系。
