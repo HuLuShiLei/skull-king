@@ -2,7 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import CardChip from './CardChip.vue'
-import { bidText, scoreText, WIN_REASON_TEXT } from './vocabulary'
+import { bidText, scoreText, tigressAsText, WIN_REASON_TEXT } from './vocabulary'
+import type { TigressMode } from '@/api/types'
 import type { FeedItem } from '@/stores/feed'
 
 // 只吃数据不认 store，这样实时房间和历史回放能共用同一套渲染。
@@ -21,6 +22,10 @@ const mySeat = computed(() => props.yourSeat)
 
 function clockOf(at: number): string {
   return new Date(at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
+
+function playedAs(mode: TigressMode | null | undefined) {
+  return tigressAsText(mode)
 }
 
 // 只有停在底部的人才跟着新消息走，往上翻历史的时候不该被拽回来。
@@ -118,7 +123,12 @@ onBeforeUnmount(() => observer?.disconnect())
 
         <div class="stack">
           <div v-if="item.seat !== mySeat" class="meta secondary">
-            {{ item.nickname }} · {{ clockOf(item.at) }}
+            {{ item.nickname }}
+            <span v-if="playedAs(item.tigressMode)"> · 当作{{ playedAs(item.tigressMode) }}</span>
+            · {{ clockOf(item.at) }}
+          </div>
+          <div v-else-if="playedAs(item.tigressMode)" class="meta secondary">
+            当作{{ playedAs(item.tigressMode) }}
           </div>
           <div class="bubble tight">
             <CardChip :card="item.card" :tigress-mode="item.tigressMode" size="sm" />
@@ -224,6 +234,10 @@ onBeforeUnmount(() => observer?.disconnect())
 .meta {
   font-size: 12px;
   margin-bottom: 3px;
+}
+
+.line.self .meta {
+  text-align: right;
 }
 
 .bubble {

@@ -30,6 +30,8 @@ export interface CardLabel {
   title: string
   subtitle: string
   style: SuitStyle
+  /** 机动人力打出后才有。小号芯片不画副标题，形态得靠这个徽章撑着。 */
+  as?: string
 }
 
 export function describeCard(card: CardDto, tigressMode?: TigressMode | null): CardLabel {
@@ -53,11 +55,7 @@ export function describeCard(card: CardDto, tigressMode?: TigressMode | null): C
     case 'SkullKing':
       return { title: 'CEO 直批', subtitle: '压过所有顾问', style: SPECIAL_STYLE }
     case 'Tigress':
-      return {
-        title: '机动人力',
-        subtitle: tigressMode === 'AsEscape' ? '本次当作跳过' : '本次当作顾问',
-        style: SPECIAL_STYLE,
-      }
+      return describeTigress(tigressMode)
     default:
       return { title: card.id, subtitle: '', style: SPECIAL_STYLE }
   }
@@ -71,6 +69,54 @@ export const WIN_REASON_TEXT: Record<TrickWinReason, string> = {
   Trump: '管理层优先级最高',
   LeadSuit: '本组内排序最靠前',
   AllEscaped: '无人接手，由发起人兜底',
+}
+
+const TIGRESS_AS_PIRATE: SuitStyle = {
+  label: '外部顾问',
+  short: '顾问',
+  color: '#a3402d',
+  background: '#fbe9e5',
+}
+
+const TIGRESS_AS_ESCAPE: SuitStyle = {
+  label: '本项跳过',
+  short: '跳过',
+  color: '#5c6670',
+  background: '#eceef1',
+}
+
+function describeTigress(mode?: TigressMode | null): CardLabel {
+  if (mode === 'AsEscape') {
+    return {
+      title: '机动人力',
+      subtitle: '当作本项跳过',
+      as: '本项跳过',
+      style: TIGRESS_AS_ESCAPE,
+    }
+  }
+
+  if (mode === 'AsPirate') {
+    return {
+      title: '机动人力',
+      subtitle: '当作外部顾问',
+      as: '外部顾问',
+      style: TIGRESS_AS_PIRATE,
+    }
+  }
+
+  return { title: '机动人力', subtitle: '可当顾问或跳过', style: SPECIAL_STYLE }
+}
+
+export function tigressAsText(mode: TigressMode | null | undefined): string | null {
+  if (mode === 'AsEscape') {
+    return '本项跳过'
+  }
+
+  if (mode === 'AsPirate') {
+    return '外部顾问'
+  }
+
+  return null
 }
 
 export function bidText(bid: number): string {

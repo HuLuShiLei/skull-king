@@ -31,7 +31,8 @@ const label = computed(() => describeCard(props.card, props.tigressMode))
     <span class="tag">{{ label.style.short }}</span>
     <span class="text">
       <span class="title">{{ label.title }}</span>
-      <span v-if="size === 'md'" class="subtitle">{{ label.subtitle }}</span>
+      <span v-if="label.as" class="as">当作{{ label.as }}</span>
+      <span v-else-if="size === 'md'" class="subtitle">{{ label.subtitle }}</span>
     </span>
   </component>
 </template>
@@ -85,6 +86,17 @@ const label = computed(() => describeCard(props.card, props.tigressMode))
   font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+.as {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--chip-color);
+  white-space: nowrap;
+}
+
+.chip.sm .as {
+  font-size: 10px;
 }
 
 .chip.interactive {

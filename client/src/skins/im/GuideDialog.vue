@@ -27,7 +27,7 @@ const glossary: { real: string; here: string; note: string }[] = [
   { real: '海盗', here: '外部顾问', note: '压过所有数字牌' },
   { real: '美人鱼', here: '法务合规', note: '压过数字牌，专克骷髅王' },
   { real: '骷髅王', here: 'CEO 直批', note: '压过海盗，但怕美人鱼' },
-  { real: '狄格雷丝（Tigress）', here: '机动人力', note: '出的时候自己选当顾问还是当跳过' },
+          { real: '狄格雷丝（Tigress）', here: '机动人力', note: '出的时候自己选当顾问还是当跳过，打出后卡片上会标明当作哪种' },
 ]
 </script>
 
